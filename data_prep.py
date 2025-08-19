@@ -343,6 +343,7 @@ def get_animated_co_data(df):
     Builds a dict with nested time-granular CO values for each state_code.
     {
       "CA": {
+        "state_code": "CA",
         "state": "California",
         "state_fips": "06",
         "year": { "2014": 0.26, ... },
@@ -365,6 +366,7 @@ def get_animated_co_data(df):
 
         if code not in output:
             output[code] = {
+                "state_code": code,
                 "state": name,
                 "state_fips": fips,
                 "year": {},
