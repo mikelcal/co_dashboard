@@ -16,6 +16,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "static" / "data"
 CSV_PATH = DATA_DIR / "co_wind_v2.csv"
+PARQUET_PATH = DATA_DIR / "co_wind_v2.parquet"
 
 
 
@@ -89,24 +90,52 @@ state_code_to_fips = {
     "WV": "54", "WI": "55", "WY": "56"
 }
 # ---------- Main Load & Prep Function ----------
-def load_filtered_data(filepath=CSV_PATH):
-    if not filepath.exists():
-        # Helpful error to debug if path is wrong
-        raise FileNotFoundError(f"Missing CSV at {filepath} (cwd={Path.cwd()})")
-    
-    df = pd.read_csv(filepath)
-    df['date_local'] = pd.to_datetime(df['date_local'])
-    df = df[(df['date_local'].dt.year >= 2014) & (df['date_local'].dt.year <= 2024)].copy()
+def convert_to_parquet(csv_path: Path = CSV_PATH, parquet_path: Path = PARQUET_PATH) -> Path:
+    """Convert CSV → Parquet (fast loads). Creates data dir if needed."""
+    parquet_path.parent.mkdir(parents=True, exist_ok=True)
+    if not csv_path.exists():
+        raise FileNotFoundError(f"CSV not found: {csv_path} (cwd={Path.cwd()})")
+    df = pd.read_csv(csv_path)
+    # requires pyarrow or fastparquet installed
+    df.to_parquet(parquet_path, index=False)
+    return parquet_path
 
-    df['date'] = df['date_local'].dt.strftime('%Y-%m-%d')
-    df['year'] = df['date_local'].dt.year
-    df['month'] = df['date_local'].dt.month
-    df['year_month'] = df['date_local'].dt.to_period('M').astype(str)
-    df['season'] = df['month'].apply(assign_season)
-    df['region'] = df['state'].apply(assign_region)
-    df['state_code'] = df['state'].map(state_name_to_code)
-    df['state_fips'] = df['state_code'].map(state_code_to_fips)
-    
+def ensure_parquet() -> Path:
+    """Return a path to a ready-to-load Parquet file, converting if needed."""
+    if PARQUET_PATH.exists():
+        return PARQUET_PATH
+    if CSV_PATH.exists():
+        return convert_to_parquet(CSV_PATH, PARQUET_PATH)
+    raise FileNotFoundError(
+        f"Neither Parquet nor CSV found.\nTried:\n  {PARQUET_PATH}\n  {CSV_PATH}\n(cwd={Path.cwd()})"
+    )
+
+def load_filtered_data(filepath: Path | None = None) -> pd.DataFrame:
+    """
+    Load the dataset (prefers Parquet). If no path is given, ensures/uses PARQUET_PATH.
+    """
+    path = Path(filepath) if filepath else ensure_parquet()
+
+    # Load based on extension
+    if path.suffix.lower() == ".parquet":
+        df = pd.read_parquet(path)          # needs pyarrow/fastparquet
+    elif path.suffix.lower() == ".csv":
+        df = pd.read_csv(path)
+    else:
+        raise ValueError(f"Unsupported file type: {path.suffix} @ {path}")
+
+    # --- Filtering & feature engineering ---
+    df["date_local"] = pd.to_datetime(df["date_local"])
+    df = df[(df["date_local"].dt.year >= 2014) & (df["date_local"].dt.year <= 2024)].copy()
+
+    df["date"] = df["date_local"].dt.strftime("%Y-%m-%d")
+    df["year"] = df["date_local"].dt.year
+    df["month"] = df["date_local"].dt.month
+    df["year_month"] = df["date_local"].dt.to_period("M").astype(str)
+    df["season"] = df["month"].apply(assign_season)
+    df["region"] = df["state"].apply(assign_region)
+    df["state_code"] = df["state"].map(state_name_to_code)
+    df["state_fips"] = df["state_code"].map(state_code_to_fips)
     return df
 
 
