@@ -22,7 +22,7 @@ def w209():
 # ---------- API ROUTES ----------
 @app.route("/healthz")
 def healthz():
-    return {"ok": True}, 200go
+    return {"ok": True}, 200
 
 @app.route("/states")
 def get_states():
