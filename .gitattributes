@@ -1,0 +1,2 @@
+static/data/co_wind_v2.csv filter=lfs diff=lfs merge=lfs -text
+static/data/co_wind_v2.csv filter=lfs diff=lfs merge=lfs -text
