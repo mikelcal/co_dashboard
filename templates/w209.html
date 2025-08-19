@@ -1,6 +1,502 @@
 <!DOCTYPE html>
-<html><head><title>w209 site</title></head>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carbon Monoxide and Environmental Factors</title>
+  <!-- Import Bootstrap styling -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <!-- Import Bootstrap icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <!-- import custom css -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
 <body>
-<h2>Hello World!</h2>
-<img src="{{url_for('static',filename=file)}}"/>
-</body></html>
+  <!-- Sticky Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Carbon Monoxide Dashboard</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
+        aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
+          <a class="nav-link" href="#overview">Overview</a>
+          <a class="nav-link" href="#visualizations">Visualizations</a>
+          <a class="nav-link" href="#wind">Wind Patterns</a>
+          <a class="nav-link" href="#seasonality">Seasonality</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Container -->
+  <div
+    class="container-fluid hero-container d-flex justify-content-center align-items-center flex-column text-white text-center">
+    <div class="container px-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <h1 class="display-3 fw-bold">Carbon Monoxide and Environmental Factors</h1>
+          <p class="lead mt-3">
+            Carbon monoxide (CO) is an insidious air pollutant, a colorless,
+            odorless, and tasteless gas that's slightly less dense than air.
+            It's a byproduct of incomplete combustion, arising from sources like
+            vehicle emissions, industrial processes, and residential fuel
+            burning. Despite its invisibility, CO poses a significant risk to
+            human health and the environment.
+          </p>
+        </div>
+        <div class="col-lg-4">
+          <div class="p-4 bg-cal-blue bg-opacity-75 rounded-3 text-white text-center h-100">
+            <h5 class="fw-bold">Carbon Monoxide Exposure</h5>
+            <p class="mb-2 fw-semibold">
+              Exposure to elevated levels of CO can lead to headaches, dizziness, nausea, and even death.
+            </p>
+            <p class="small mb-0">
+              <em>Source: <a href="https://tinyurl.com/mubjf8wv" target="_blank"
+                  class="text-white text-decoration-underline">Environmental Protection Agency</a></em>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-5" style="margin-top: 100px;">
+        <div class="col-lg-2"></div> <!-- Empty column left -->
+
+        <div class="col-lg-8 mt-5 pt-3">
+          <div class="card mb-4 border-0 rounded-4 overflow-hidden shadow-lg">
+            <div class="row g-0">
+              <!-- Left: California Heritage Gold Background -->
+              <div class="col-md-8 p-4 text-dark" style="background-color: #C09748;">
+                <h5 class="fw-bold mb-2">Intended Audience</h5>
+                <p class="mb-3" style="color: #212529;">
+                  This dashboard is intended for policymakers, educators, researchers, and environmentally conscious
+                  users
+                  interested in understanding carbon monoxide pollution and wind patterns across the United States.
+                </p>
+
+                <h6 class="fw-bold mb-2">Project Contributors</h6>
+                <p class="small fw-semibold mb-0">
+                  <span class="me-2">Mikel Calderón</span>
+                  <span class="text-muted">|</span>
+                  <span class="mx-2">Carol Sánchez Garibay</span>
+                  <span class="text-muted">|</span>
+                  <span class="ms-2">Tracy Volz</span>
+                </p>
+              </div>
+
+              <!-- Right: Berkeley Seal on White -->
+              <div class="col-md-4 d-flex flex-column justify-content-center align-items-center p-4 bg-white">
+                <a href="https://www.ischool.berkeley.edu/programs/mids" target="_blank" class="mb-2">
+                  <img src="{{ url_for('static', filename='images/berkeley-seal.png') }}"
+                    alt="UC Berkeley School of Information Seal" style="height: 90px;" />
+                </a>
+                <p class="small text-muted text-center mb-0">
+                  School of Information<br>University of California, Berkeley
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="col-lg-2"></div> <!-- Empty column right -->
+      </div>
+      <a href="#overview" class="scroll-cue text-center">
+        <span class="scroll-down"></span>
+      </a>
+
+      <div class="image-credit">
+        <small class="text-white-50">
+          Photo by <a
+            href="https://unsplash.com/@nickhh?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Nick
+            Herasimenka</a> on
+          <a
+            href="https://unsplash.com/photos/city-skyline-across-bridge-during-daytime-rYGQ49W1wqc?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+        </small>
+      </div>
+    </div>
+  </div>
+  <!-- Main Container -->
+  <main class="container-xl">
+    <div id="overview" class="container-fluid my-5"></div>
+    <div class="row my-5">
+      <div class="col-12">
+        <div class="card shadow p-4 border-0" style="background: linear-gradient(90deg, #f9fafb, #eef2f7);">
+          <div class="row align-items-center">
+            <div class="col-md-4">
+              <h2 class="fw-bold" style="color: #333;">🌬️ Overview</h2>
+              <p class="mb-0">
+                This project aims to visualize the evolution of CO contamination in the United States over time,
+                exploring its relationship with wind patterns. Hover, explore, and uncover how geography and air
+                dynamics intertwine.
+              </p>
+            </div>
+            <div class="col-md-8">
+              <svg id="comboChart" width="960" height="500" viewBox="0 0 960 500"></svg>
+              <div class="d-flex justify-content-end align-items-center gap-2 my-2 me-3">
+                <label for="toggleTrends" class="form-label mb-0">Show Trend Lines</label>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="toggleTrends" checked>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div id="visualizations" class="row text-center">
+      <div class="col">
+        <h3>Relationship Between Carbon Monoxide and Wind Behavior</h3>
+      </div>
+    </div>
+    <div class="row my-5">
+      <div class="col-8">
+        <div id="groupedBarWrapper">
+          <svg id="groupedBarChart" width="100%" height="100%"></svg>
+          <div id="groupedBarLoader" class="chart-loader-overlay">
+            <div class="spinner-grow text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card shadow-sm p-4" style="margin-top: 280px;">
+          <p class="mb-0">
+            Exploring the complex interplay between wind patterns and air pollution at a state level can potentially
+            reveal insights that could inform environmental management and policy decisions.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div id="wind" class="row text-center">
+      <div class="col">
+        <h3>What states have controlled the increase of pollution?</h3>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-4">
+        <div class="card shadow-sm p-3" style="margin-top: 250px;">
+          <h5>Correlation Insight</h5>
+
+          <p>Explore the dynamic evolution of CO pollution across different states to observe how CO levels have changed
+            over the years, revealing both progress and persistent challenges.</p>
+
+          <p>
+            Between <strong>2014 and 2024</strong>, almost all U.S. states showed a <strong>negative
+              correlation</strong> between wind speed and CO levels.
+            This means that as wind speed increased, carbon monoxide concentrations tended to decrease.
+          </p>
+          <p>
+            The takeaway? Wind acts like nature’s broom—sweeping away harmful CO pollutants and improving air quality.
+          </p>
+          <p class="fst-italic text-muted">
+            Correlation doesn’t imply causation, but when nature whispers this loudly... we listen. <span>🌬️</span>
+          </p>
+        </div>
+
+      </div>
+      <div class="col-8">
+        <!-- Visualization Controls -->
+        <div class="container my-5">
+          <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+            <div class="btn-group" role="group" aria-label="Map Visualization Controls">
+              <button type="button" class="btn btn-outline-primary mode-button active" id="btnStaticMap">Static CO
+                Levels</button>
+              <button type="button" class="btn btn-outline-primary mode-button" id="btnAnimatedMap">Animated CO
+                Evolution</button>
+              <button type="button" class="btn btn-outline-primary mode-button" id="btnCorrelationMap">Correlation
+                Analysis</button>
+            </div>
+
+            <div class="form-check form-switch ms-3">
+              <input class="form-check-input" type="checkbox" id="toggleWindVectors">
+              <label class="form-check-label" for="toggleWindVectors">Show Wind</label>
+              <!-- <i class="bi bi-info-circle-fill text-primary" data-bs-toggle="modal"
+                data-bs-target="#correlationInfoModal" style="cursor: pointer;" title="Learn more about this chart"></i> -->
+            </div>
+          </div>
+
+          <h2 id="mapTitle" class="text-center map-title">Static CO Levels (2014–2024 Average)</h2>
+
+          <!-- Container for Map Visualizations -->
+          <div id="yearTitle" class="map-year-label year-label hidden"></div>
+
+          <div id="mapVisualizationContainer" class="position-relative" style="width: 100%; height: 600px;">
+
+            <!-- Spinner inside the container, overlaid -->
+            <div id="mapLoader">
+              <div class="spinner-grow text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls (scrubber + mode) -->
+          <div class="d-flex flex-wrap align-items-center gap-4 mt-3">
+            <!-- Always-visible Legend -->
+            <div id="mapLegend" class="legend-box"></div>
+
+
+            <!-- Progression Controls Wrapper -->
+            <div id="progressionControls" class="d-flex align-items-center gap-3 flex-wrap fade-in">
+              <div class="d-flex flex-column align-items-start">
+                <label for="animationModeToggle" class="form-label mb-1">Progression</label>
+                <select id="animationModeToggle" class="form-select form-select-sm">
+                  <option value="year" selected>Yearly</option>
+                  <option value="season">Seasonal</option>
+                </select>
+              </div>
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="btn-group" role="group" aria-label="Playback Controls">
+                  <button type="button" class="btn btn-primary btn-sm" id="playButton">
+                    <i class="bi bi-play-fill"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton">
+                    <i class="bi bi-pause-fill"></i>
+                  </button>
+                </div>
+
+                <input type="range" id="scrubberSlider" min="0" max="X" value="0" class="form-range"
+                  style="width: 200px;" />
+
+                <span class="fw-bold year-label">Year: --</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row my-5">
+      <div class="col-6">
+        <div id="chartsContainer class=" d-flex flex-column gap-3">
+          <h5 id="stateTitle">Carbon Monoxide & Wind Speed</h5>
+
+          <div class="chart-wrapper">
+            <svg id="coChart"></svg>
+          </div>
+          <!-- CO Trend Toggle -->
+          <div class="d-flex justify-content-end align-items-center gap-2 my-2 me-5">
+            <label for="toggleCOTrend" class="form-label mb-0">Show CO Trend Lines</label>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="toggleCOTrend" checked>
+            </div>
+          </div>
+
+          <div class="chart-wrapper">
+            <svg id="windChart"></svg>
+          </div>
+          <!-- Wind Trend Toggle -->
+          <div class="d-flex justify-content-end align-items-center gap-2 my-2 me-5">
+            <label for="toggleWindTrend" class="form-label mb-0">Show Wind Trend Lines</label>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="toggleWindTrend" checked>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4 my-3">
+        <h5 class="text-center" id="stWindRoseTitle">Wind Rose Chart</h5>
+        <div class="chart-wrapper">
+          <div id="stWindRoseLegend"></div>
+          <div id="windRoseChart" class="mt-3"></div>
+        </div>
+      </div>
+      <div class="col-2">
+        <div class="my-3">
+          <label for="stateSelector" class="form-label">Select a State:</label>
+          <select id="stateSelector" class="form-select w-auto">
+            <option disabled selected>Select a state</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="row my-5">
+      <div class="col-8">
+        <h5 class="mt-3">CO Pollution by State (Treemap)</h5>
+        <div id="legendContainer" class="my-3"></div>
+        <div id="treemapWrapper" style="position: relative;">
+          <div id="treemapContainer"></div>
+          <div id="treemapLoader">
+            <div class="spinner-grow text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card shadow-sm p-4" style="margin-top: 180px;">
+          <h5 class="card-title mb-3">
+            Which States Bear the Burden?
+          </h5>
+          <p class="card-text">
+            Identifying Key Contributors to National Carbon Monoxide Pollution
+          </p>
+          <p class="card-text mb-0">
+            This visualization highlights the states with the highest levels of carbon monoxide (CO) pollution.
+            These areas should be prioritized for targeted interventions and stricter regulations concerning
+            vehicle emissions, industrial activities, and other contributing factors.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div id="seasonality" class="row text-center">
+      <div class="col">
+        <h3>Is there seasonality in the behavior of the wind?</h3>
+      </div>
+    </div>
+    <div class="row my-5">
+      <div class="col-4">
+        <div class="card border-dark text-bg-light shadow-sm p-4">
+          <h5 class="text-center card-title" id="windYearDisplay">Year: 2014</h5>
+          <div id="windRoseLegend" class="card border-dark mb-4"></div>
+
+          <h5 class="text-center fw-bold text-uppercase text-muted mb-2">Northern States</h5>
+          <div id="windRoseNorth" class="wind-chart mb-4"></div>
+
+          <h5 class="text-center fw-bold text-uppercase text-muted mb-2">Southern States</h5>
+          <div id="windRoseSouth" class="wind-chart"></div>
+          <div id="windControls" class="d-flex align-items-center gap-3 flex-wrap fade-in"></div>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="btn-group" role="group" aria-label="Playback Controls">
+              <button type="button" class="btn btn-primary btn-sm" id="playButton">
+                <i class="bi bi-play-fill"></i>
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton">
+                <i class="bi bi-pause-fill"></i>
+              </button>
+            </div>
+          </div>
+
+          <input type="range" id="scrubberSlider" min="0" max="X" value="0" class="form-range" style="width: 200px;" />
+
+          <span id="windYearLabel" class="fw-bold">Year: --</span>
+        </div>
+      </div>
+
+      <div class="col-8">
+        <div class="my-3">
+          <h4>Wind Patterns and Seasonal Variations</h4>
+          <p>The pattern of highest average wind speeds typically occurs during spring. These elevated spring winds may
+            contribute significantly to pollutant dispersion, helping clear accumulated winter pollutants.
+            Carbon monoxide levels often peak during winter months due to increased heating emissions and temperature
+            inversions that trap pollutants (Environmental Protection Agency). As summer arrives, the combination of
+            reduced heating needs and increased atmospheric mixing creates what could be considered an "annual minimum"
+            or reset period for carbon monoxide concentrations in many regions.</p><small>Source: <a
+              href="https://tinyurl.com/mubjf8wv">Environmental Protection Agency</a></small>
+        </div>
+        <div class="container text-center my-4">
+          <div class="row justify-content-center">
+            <div class="col-lg-10"> <!-- or col-md-10 for even tighter -->
+              <div class="chart-wrapper">
+                <div id="northChart" class="seasonal-chart"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="container text-center my-4">
+          <div class="row justify-content-center">
+            <div class="col-lg-10"> <!-- or col-md-10 for even tighter -->
+
+              <div class="chart-wrapper">
+                <div id="southChart" class="seasonal-chart"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+
+      </div>
+    </div>
+    </div>
+    <!-- Tooltip Containers -->
+    <div id="tooltip"></div>
+  </main>
+  <!-- Modal Code for Info box -->
+  <div class="modal fade" id="correlationInfoModal" tabindex="-1" aria-labelledby="correlationInfoLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-end">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="correlationInfoLabel">Correlation Insight 🧠</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Between <strong>2014 and 2024</strong>, almost all U.S. states showed a <strong>negative
+              correlation</strong> between wind speed and CO levels.
+            This means that as wind speed increased, carbon monoxide concentrations tended to decrease.
+          </p>
+          <p>
+            The takeaway? Wind acts like nature’s broom—sweeping away harmful CO pollutants and improving air quality.
+          </p>
+          <p class="fst-italic text-muted">
+            Correlation doesn’t imply causation, but when nature whispers this loudly... we listen.
+          </p>🌬️
+        </div>
+      </div>
+    </div>
+  </div>
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol id="bootstrap" viewBox="0 0 118 94">
+      <title>Bootstrap</title>
+      <path fill-rule="evenodd" clip-rule="evenodd"
+        d="M24.509 0c-6.733 0-11.715 5.893-11.492 12.284.214 6.14-.064 14.092-2.066 20.577C8.943 39.365 5.547 43.485 0 44.014v5.972c5.547.529 8.943 4.649 10.951 11.153 2.002 6.485 2.28 14.437 2.066 20.577C12.794 88.106 17.776 94 24.51 94H93.5c6.733 0 11.714-5.893 11.491-12.284-.214-6.14.064-14.092 2.066-20.577 2.009-6.504 5.396-10.624 10.943-11.153v-5.972c-5.547-.529-8.934-4.649-10.943-11.153-2.002-6.484-2.28-14.437-2.066-20.577C105.214 5.894 100.233 0 93.5 0H24.508zM80 57.863C80 66.663 73.436 72 62.543 72H44a2 2 0 01-2-2V24a2 2 0 012-2h18.437c9.083 0 15.044 4.92 15.044 12.474 0 5.302-4.01 10.049-9.119 10.88v.277C75.317 46.394 80 51.21 80 57.863zM60.521 28.34H49.948v14.934h8.905c6.884 0 10.68-2.772 10.68-7.727 0-4.643-3.264-7.207-9.012-7.207zM49.948 49.2v16.458H60.91c7.167 0 10.964-2.876 10.964-8.281 0-5.406-3.903-8.178-11.425-8.178H49.948z">
+      </path>
+    </symbol>
+    <symbol id="facebook" viewBox="0 0 16 16">
+      <path
+        d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z" />
+    </symbol>
+    <symbol id="instagram" viewBox="0 0 16 16">
+      <path
+        d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z" />
+    </symbol>
+    <symbol id="twitter" viewBox="0 0 16 16">
+      <path
+        d="M5.026 15c6.038 0 9.341-5.003 9.341-9.334 0-.14 0-.282-.006-.422A6.685 6.685 0 0 0 16 3.542a6.658 6.658 0 0 1-1.889.518 3.301 3.301 0 0 0 1.447-1.817 6.533 6.533 0 0 1-2.087.793A3.286 3.286 0 0 0 7.875 6.03a9.325 9.325 0 0 1-6.767-3.429 3.289 3.289 0 0 0 1.018 4.382A3.323 3.323 0 0 1 .64 6.575v.045a3.288 3.288 0 0 0 2.632 3.218 3.203 3.203 0 0 1-.865.115 3.23 3.23 0 0 1-.614-.057 3.283 3.283 0 0 0 3.067 2.277A6.588 6.588 0 0 1 .78 13.58a6.32 6.32 0 0 1-.78-.045A9.344 9.344 0 0 0 5.026 15z" />
+    </symbol>
+  </svg>
+  <div class="container">
+    <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
+      <div class="col-md-4 d-flex align-items-center">
+        <span class="mb-3 mb-md-0 text-body-secondary">&copy; 2025 MIDS w209</span>
+      </div>
+      <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
+        <li class="ms-3"><a class="text-body-secondary" href="#"><svg class="bi" width="24" height="24">
+              <use xlink:href="#twitter" />
+            </svg></a></li>
+        <li class="ms-3"><a class="text-body-secondary" href="#"><svg class="bi" width="24" height="24">
+              <use xlink:href="#instagram" />
+            </svg></a></li>
+        <li class="ms-3"><a class="text-body-secondary" href="#"><svg class="bi" width="24" height="24">
+              <use xlink:href="#facebook" />
+            </svg></a></li>
+      </ul>
+    </footer>
+  </div>
+
+  <!-- Bootstrap with popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+
+  <!-- Import D3 version 7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+
+  <!-- Import TopoJSON -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
+
+  <!-- Import custom JS functionality -->
+  <script type="module" src="{{url_for('static', filename='js/main.js')}}"></script>
+
+</body>
+
+</html>
