@@ -20,9 +20,9 @@ def w209():
     return render_template("w209.html")
 
 # ---------- API ROUTES ----------
-@app.route("/test", methods=["GET"])
-def test():
-    return jsonify(data_prep.clean_for_json(full_df))
+@app.route("/healthz")
+def healthz():
+    return {"ok": True}, 200go
 
 @app.route("/states")
 def get_states():
