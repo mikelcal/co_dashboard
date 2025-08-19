@@ -1,0 +1,314 @@
+body {
+  font-family: sans-serif;
+}
+
+.hero-container {
+  background-image: url("/static/images/co-dashboard-bg.jpg");
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  min-height: 96vh;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  padding-top: 80px; /* adjust if navbar height changes */
+}
+
+.hero-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: -1;
+}
+
+.hero-container h1,
+.hero-container p,
+.hero-container a {
+  color: white;
+}
+
+.scroll-cue {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.scroll-down {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border-bottom: 2px solid white;
+  border-right: 2px solid white;
+  transform: rotate(45deg);
+  animation: bounceDown 1.5s infinite;
+}
+
+@keyframes bounceDown {
+  0%, 100% { transform: translateY(0) rotate(45deg); }
+  50% { transform: translateY(10px) rotate(45deg); }
+}
+.image-credit {
+  position: absolute;
+  bottom: 5px;
+  right: 10px;
+  font-size: 0.8rem;
+  z-index: 2;
+}
+
+.bg-body-tertiary {
+  background-color: rgba(255, 255, 255, 0.05); /* subtle card color */
+  backdrop-filter: blur(2px); /* glassy look */
+}
+
+
+
+.axis-label {
+    font-size: 14px;
+}
+
+.bg-cal-blue {
+    background-color: #3B7EA1;
+}
+
+.bg-opacity-75 {
+  opacity: 0.95;
+}
+
+.legend {
+    font-size: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#tooltip {
+    position: absolute;
+    visibility: hidden;
+    width: 160px;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0px 0px 6px rgba(0, 0, 0, 0.15);
+    line-height: 1.4;
+    z-index: 1000;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+  }
+  
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  #treemapWrapper {
+    position: relative;
+    min-height: 500px;
+  }
+
+  #treemapLoader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    display: none;
+    z-index: 10;
+  
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #treemapLoader .spinner-grow {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  #windRoseLegend {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 8px 24px;
+    justify-content: center;
+  }
+  
+  .legend-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  
+  .legend-color {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    border-radius: 2px;
+  }
+
+  #mapLoader {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    display: none; /* toggled via JS */
+    z-index: 10;
+  
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #mapLegend {
+    flex: 1 1 180px;
+    max-width: 300px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  #mapLegend svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  
+  #mapVisualizationContainer {
+    width: 100%;
+    aspect-ratio: 16 / 9; /* or 4 / 3 */
+    position: relative;
+  }
+
+  .map-year-label {
+    position: relative;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 70%);
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    z-index: 1000; /* Ensure it's above other elements */
+  }
+
+  #progressionControls {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  #scrubberControls {
+    flex-grow: 1;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  #animationModeToggle {
+    min-width: 100px;
+  }
+  
+  #scrubberSlider {
+    max-width: 200px;
+    flex-grow: 0;
+    flex-shrink: 1;
+  }
+  
+
+  .modal-dialog-end {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: 1rem;
+    margin-top: 5rem;
+  }
+  
+  .modal-content {
+    border-left: 5px solid #6a5acd;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+  }
+  
+  .modal-title {
+    font-weight: bold;
+    color: #4b0082;
+  }
+
+  .chart-loader-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    display: none;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .chart-loader-overlay .spinner-grow {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  #groupedBarWrapper {
+    position: relative;
+    min-height: 500px;
+  }
+  
+  #groupedBarLoader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    display: none;
+    z-index: 10;
+  
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  #groupedBarLoader .spinner-grow {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  #mapLoader .spinner-grow {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.6s ease-out;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
