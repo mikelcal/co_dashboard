@@ -254,15 +254,15 @@
               </div>
               <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div class="btn-group" role="group" aria-label="Playback Controls">
-                  <button type="button" class="btn btn-primary btn-sm" id="playButton">
+                  <button type="button" class="btn btn-primary btn-sm" id="playButton-map">
                     <i class="bi bi-play-fill"></i>
                   </button>
-                  <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton">
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton-map">
                     <i class="bi bi-pause-fill"></i>
                   </button>
                 </div>
 
-                <input type="range" id="scrubberSlider" min="0" max="X" value="0" class="form-range"
+                <input type="range" id="scrubberSlider-map" min="0" max="X" value="0" class="form-range"
                   style="width: 200px;" />
 
                 <span class="fw-bold year-label">Year: --</span>
@@ -361,21 +361,25 @@
 
           <h5 class="text-center fw-bold text-uppercase text-muted mb-2">Southern States</h5>
           <div id="windRoseSouth" class="wind-chart"></div>
-          <div id="windControls" class="d-flex align-items-center gap-3 flex-wrap fade-in"></div>
-          <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="btn-group" role="group" aria-label="Playback Controls">
-              <button type="button" class="btn btn-primary btn-sm" id="playButton">
-                <i class="bi bi-play-fill"></i>
-              </button>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton">
-                <i class="bi bi-pause-fill"></i>
-              </button>
+
+          <!-- Wind Controls Wrapper -->
+          <div id="windControls" class="d-flex align-items-center gap-3 flex-wrap fade-in">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+              <div class="btn-group" role="group" aria-label="Playback Controls">
+                <button type="button" class="btn btn-primary btn-sm" id="playButton-wind">
+                  <i class="bi bi-play-fill"></i>
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="pauseButton-wind">
+                  <i class="bi bi-pause-fill"></i>
+                </button>
+              </div>
             </div>
+
+            <!-- Scrubber Slider -->
+            <input type="range" id="windYearSlider" min="0" max="X" value="0" class="form-range" />
+
+            <span id="windYearLabel" class="fw-bold">Year: --</span>
           </div>
-
-          <input type="range" id="scrubberSlider" min="0" max="X" value="0" class="form-range" style="width: 200px;" />
-
-          <span id="windYearLabel" class="fw-bold">Year: --</span>
         </div>
       </div>
 

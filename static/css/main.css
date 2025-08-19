@@ -194,41 +194,93 @@ body {
     aspect-ratio: 16 / 9; /* or 4 / 3 */
     position: relative;
   }
+  /* Optimized progression controls */
+  #progressionControls {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    
+    /* Prevent flex container from causing reflows */
+    min-height: 40px; /* Fixed height prevents jumping */
+  }
+
+  #scrubberControls {
+    flex-grow: 1;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    
+    /* Prevent layout shifts */
+    min-width: 0; /* Allows proper flex shrinking */
+  }
+
+  #animationModeToggle {
+    min-width: 100px;
+    flex-shrink: 0; /* Prevent shrinking during animations */
+  }
+
+  #scrubberSlider-map {
+    max-width: 200px;
+    flex-grow: 0;
+    flex-shrink: 1;
+    
+    /* Prevent slider from causing reflows */
+    width: 200px; /* Fixed width instead of max-width */
+  }
 
   .map-year-label {
     position: relative;
+    width: 300px !important; /* Increased width for seasonal labels */
+    height: 120px !important; /* Fixed height */
     top: 50%;
     left: 50%;
     transform: translate(-50%, 70%);
-    font-size: 24px;
+    font-size: 14px !important;
     font-weight: bold;
     color: #333;
     text-align: center;
     z-index: 1000; /* Ensure it's above other elements */
   }
 
-  #progressionControls {
+  /* Year label in controls - COMPLETELY fixed size */
+  .year-label {
+    display: inline-block;
+    width: 180px !important; /* Increased width for seasonal labels */
+    height: 20px !important; /* Fixed height */
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    
+    /* Prevent any box model changes */
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    
+    /* Force font metrics to be consistent */
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.2;
+    
+    /* Performance optimizations */
+    will-change: contents;
+    contain: strict;
+    
+    /* Alternative: Use monospace section for consistent character width */
+    font-variant-numeric: tabular-nums; /* Makes numbers same width */
+  }
+
+  /* Wind Controls Styling */
+  #windControls {
     flex-wrap: nowrap;
     justify-content: space-between;
+    flex-direction: row;
     align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-  
-  #scrubberControls {
-    flex-grow: 1;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-  
-  #animationModeToggle {
-    min-width: 100px;
-  }
-  
-  #scrubberSlider {
-    max-width: 200px;
-    flex-grow: 0;
-    flex-shrink: 1;
-  }
-  
 
   .modal-dialog-end {
     max-width: 400px;

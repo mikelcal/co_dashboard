@@ -7,7 +7,7 @@ import {
   windDataCache,
 } from "./windVectors.js";
 import { showLoader, hideLoader } from "./loaderUtils.js";
-const toggleWindOverlayDebounced = debounce(toggleWindOverlay, 300);
+const toggleWindOverlayDebounced = debounce(toggleWindOverlay, 1500);
 
 // === Constants & Global State ===
 
@@ -101,6 +101,7 @@ let updateTooltip = function (fips) {
   const abbr = fipsToAbbr.get(fips);
   const meta = animatedData?.[abbr];
   const tooltip = d3.select("#tooltip");
+  const stateMeta = { name: meta.state, abbr, fips };
 
   let label = "";
   let coVal = null;
@@ -118,8 +119,14 @@ let updateTooltip = function (fips) {
     coVal = getValue(fips, key);
     wind = getWindByAbbr(abbr, { mode: "seasonal", year, season });
   }
-
-  const html = getCombinedTooltipHTML(meta, coVal, wind, { label });
+  // console.log(
+  //   `Updating tooltip for ${abbr} (${fips}) in ${currentMode} mode. META: ${JSON.stringify(
+  //     meta,
+  //     null,
+  //     2
+  //   )}`
+  // );
+  const html = getCombinedTooltipHTML(stateMeta, coVal, wind, { label });
   tooltip.html(html);
 };
 
@@ -153,7 +160,7 @@ function startYearAnimation() {
   animationTimer = setInterval(() => {
     currentIndex = (currentIndex + 1) % progressionValues.length;
     updateVisuals(currentMode, currentIndex);
-    document.getElementById("scrubberSlider").value = currentIndex;
+    document.getElementById("scrubberSlider-map").value = currentIndex;
     updateProgressLabels();
   }, 2000);
 }
@@ -298,6 +305,7 @@ function updateMapYears(yearIndex = 0) {
   });
 
   const sampleState = Object.values(animatedData)[0];
+  //console.log("Sample state data:", sampleState);
   if (!sampleState || !sampleState.year) {
     console.warn("No year data found in animatedData");
     return;
@@ -312,7 +320,7 @@ function updateMapYears(yearIndex = 0) {
   initScrubber("year", years);
   updateMap(yearIndex);
 
-  document.getElementById("scrubberSlider").value = yearIndex;
+  document.getElementById("scrubberSlider-map").value = yearIndex;
   updateProgressLabels();
 
   const yearTitle = document.getElementById("yearTitle");
@@ -339,7 +347,7 @@ function updateMapSeasons(index = 0) {
   currentIndex = index;
   currentYearIndex = index;
 
-  const scrubber = document.getElementById("scrubberSlider");
+  const scrubber = document.getElementById("scrubberSlider-map");
   scrubber.min = 0;
   scrubber.max = progressionValues.length - 1;
   scrubber.value = index;
@@ -364,11 +372,12 @@ function updateMapSeasons(index = 0) {
     d3.select("#tooltip").style("visibility") === "visible"
   ) {
     const abbr = fipsToAbbr.get(hoveredStateId);
+    //console.log(`Updating tooltip for ${abbr} in season mode`);
     const state = animatedData?.[abbr]?.state ?? "Unknown";
     const value = animatedData?.[abbr]?.season?.[key];
 
     d3.select("#tooltip").html(`
-        <strong>${state}</strong><br>
+        <strong>${state} (${abbr})</strong><br>
         Season: ${season} ${year}<br>
         Avg CO: ${value != null ? value.toFixed(3) + " ppm" : "No data"}
       `);
@@ -393,7 +402,7 @@ function initScrubber(mode, valuesArray) {
   progressionValues = valuesArray;
   currentIndex = 0;
 
-  const slider = document.getElementById("scrubberSlider");
+  const slider = document.getElementById("scrubberSlider-map");
   slider.min = 0;
   slider.max = valuesArray.length - 1;
   slider.value = 0;
@@ -409,15 +418,15 @@ function initScrubber(mode, valuesArray) {
 }
 
 // Function to handle map scrubber change
-document.getElementById("scrubberSlider").addEventListener("input", (e) => {
+document.getElementById("scrubberSlider-map").addEventListener("input", (e) => {
   updateVisuals(currentMode, +e.target.value);
 });
 
-document.getElementById("playButton").addEventListener("click", () => {
+document.getElementById("playButton-map").addEventListener("click", () => {
   startYearAnimation();
 });
 
-document.getElementById("pauseButton").addEventListener("click", () => {
+document.getElementById("pauseButton-map").addEventListener("click", () => {
   stopYearAnimation();
 });
 
@@ -798,9 +807,9 @@ function degreesToCardinal(deg) {
 function getCombinedTooltipHTML(stateMeta, coVal, wind, options = {}) {
   const lines = [];
   const label = options.label ?? "Avg (2014–2024)";
-
+  //console.log("stateMeta properties:", Object.keys(stateMeta), stateMeta);
   if (stateMeta) {
-    lines.push(`<strong>${stateMeta.name}</strong>`);
+    lines.push(`<strong>${stateMeta.name} (${stateMeta.abbr})</strong>`);
     if (label) lines.push(label);
   } else {
     lines.push("<strong>Unknown</strong>");
@@ -2295,7 +2304,7 @@ function drawWindRose(containerId, data) {
   const colorScale = d3
     .scaleOrdinal()
     .domain(speedOrder)
-    .range(["#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"]);
+    .range(["#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"]);
 
   // Stack the data by speed category
   const stackedData = d3
@@ -2312,8 +2321,6 @@ function drawWindRose(containerId, data) {
     .scaleLinear()
     .domain([0, d3.max(stackedData[stackedData.length - 1], (d) => d[1])])
     .range([0, radius]);
-
-  const tooltip = d3.select("#tooltip");
 
   function arcPath(d, j, radiusScale, angleScale) {
     const a0 = angleScale(d.data.direction_bin);
@@ -2391,7 +2398,7 @@ function drawWindLegend(containerId) {
   const colorScale = d3
     .scaleOrdinal()
     .domain(speedOrder)
-    .range(["#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"]);
+    .range(["#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"]);
 
   speedOrder.forEach((label) => {
     const row = legendContainer.append("div").attr("class", "legend-row");
@@ -2411,6 +2418,7 @@ function startStackedWindRoseAnimation() {
     .then((data) => {
       windRoseData = data;
       windYears = Object.keys(data["Northern"]).map(Number).sort();
+      //console.log("Wind rose years:", windYears);
       windYearIndex = 0;
 
       drawWindRoseFrame(windYears[windYearIndex]);
@@ -2419,15 +2427,15 @@ function startStackedWindRoseAnimation() {
       windRoseIsPlaying = true;
 
       drawWindLegend("#windRoseLegend");
-      initWindControls(); // attach button + slider handlers
+      initWindControls(windYears); // attach button + slider handlers
     })
     .catch((err) => console.error("Failed to load animated wind rose:", err));
 }
 
 // Function to initialize wind rose controls
 function setButtonState(isPlaying) {
-  const playBtn = document.getElementById("playButton");
-  const pauseBtn = document.getElementById("pauseButton");
+  const playBtn = document.getElementById("playButton-wind");
+  const pauseBtn = document.getElementById("pauseButton-wind");
 
   playBtn.disabled = isPlaying;
   pauseBtn.disabled = !isPlaying;
@@ -2445,12 +2453,14 @@ function setButtonState(isPlaying) {
   }
 }
 
-function initWindControls() {
-  const playBtn = document.getElementById("playButton");
-  const pauseBtn = document.getElementById("pauseButton");
+function initWindControls(windYears) {
+  const playBtn = document.getElementById("playButton-wind");
+  const pauseBtn = document.getElementById("pauseButton-wind");
   const slider = document.getElementById("windYearSlider");
   if (slider && windYears.length) {
-    slider.value = windYears[windYearIndex];
+    slider.min = 0;
+    slider.max = windYears.length - 1;
+    slider.value = 0;
   }
 
   setButtonState(true); // autoplay is on initially
@@ -2472,7 +2482,7 @@ function initWindControls() {
   });
 
   slider.addEventListener("input", (e) => {
-    windYearIndex = windYears.indexOf(+e.target.value);
+    windYearIndex = e.target.value;
     drawWindRoseFrame(windYears[windYearIndex]);
   });
 }
@@ -2481,8 +2491,8 @@ function playNextYear() {
   windYearIndex = (windYearIndex + 1) % windYears.length;
   drawWindRoseFrame(windYears[windYearIndex]);
   const slider = document.getElementById("windYearSlider");
-  if (slider && windYears.length) {
-    slider.value = windYears[windYearIndex];
+  if (slider) {
+    slider.value = windYearIndex;
   }
 }
 function drawWindRoseFrame(year) {
@@ -2491,6 +2501,7 @@ function drawWindRoseFrame(year) {
   drawWindRose(containerNorth, windRoseData["Northern"][year]);
   drawWindRose(containerSouth, windRoseData["Southern"][year]);
   document.getElementById("windYearDisplay").textContent = `Year: ${year}`;
+  document.getElementById("windYearLabel").textContent = `Year: ${year}`;
 }
 
 function drawLegend({
@@ -2892,7 +2903,6 @@ async function drawAnimatedCOMap(svg) {
     return;
   }
 
-  // Refresh FIPS–abbr map using fresh animatedData
   fipsToAbbr.clear();
   Object.entries(animatedData).forEach(([abbr, entry]) => {
     fipsToAbbr.set(entry.state_fips, abbr);
@@ -2937,8 +2947,9 @@ async function drawAnimatedCOMap(svg) {
   statePaths
     .on("mouseover", (event, d) => {
       hoveredStateId = d.id;
+      // console.log("Hovered state:", hoveredStateId);
       tooltip.style("visibility", "visible");
-      updateTooltip(d.id);
+      updateTooltip(hoveredStateId);
     })
     .on("mousemove", (event) => {
       tooltip
