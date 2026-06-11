@@ -2,12 +2,6 @@ import pandas as pd
 import numpy as np
 import scipy.stats as stats
 from scipy.stats import linregress
-import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.dates import DateFormatter
-import matplotlib.dates as mdates
-import os
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -21,6 +15,16 @@ PARQUET_PATH = DATA_DIR / "co_wind_v2.parquet"
 
 
 # ---------- Preprocessing Utilities ----------
+
+def circular_mean_degrees(degrees):
+    """Vector-average compass directions. Arithmetic means are wrong for
+    angles — mean(350°, 10°) should be 0°, not 180°."""
+    rad = np.deg2rad(pd.Series(degrees).dropna())
+    if rad.empty:
+        return np.nan
+    mean_deg = float(np.degrees(np.arctan2(np.sin(rad).mean(), np.cos(rad).mean())) % 360)
+    # float rounding of values just below 0° can yield exactly 360.0
+    return 0.0 if mean_deg >= 360 else mean_deg
 
 def assign_season(month):
     if month in [12, 1, 2]:
@@ -402,15 +406,11 @@ def get_wind_vectors_static(df):
     """
     vectors = (
         df.groupby(['state_code', 'state', 'state_fips'])
-        .agg({
-            'avg_wind_dir': 'mean',
-            'avg_wind_speed': 'mean'
-        })
+        .agg(
+            wind_direction=('avg_wind_dir', circular_mean_degrees),
+            wind_speed=('avg_wind_speed', 'mean'),
+        )
         .reset_index()
-        .rename(columns={
-            'avg_wind_dir': 'wind_direction',
-            'avg_wind_speed': 'wind_speed'
-        })
     )
 
     vectors['state_fips'] = vectors['state_fips'].astype(str)
@@ -427,15 +427,11 @@ def get_wind_vectors_by_year(df):
     
     grouped = (
         df.groupby(['year', 'state_code', 'state', 'state_fips'])
-        .agg({
-            'avg_wind_dir': 'mean',
-            'avg_wind_speed': 'mean'
-        })
+        .agg(
+            wind_direction=('avg_wind_dir', circular_mean_degrees),
+            wind_speed=('avg_wind_speed', 'mean'),
+        )
         .reset_index()
-        .rename(columns={
-            'avg_wind_dir': 'wind_direction',
-            'avg_wind_speed': 'wind_speed'
-        })
     )
     grouped['state_fips'] = grouped['state_fips'].astype(str)
 
@@ -466,15 +462,11 @@ def get_wind_vectors_by_season(df):
 
     vectors_seasons = (
         df.groupby(["state_code", "state", "state_fips", "year", "season"])
-        .agg({
-            "avg_wind_dir": "mean",
-            "avg_wind_speed": "mean"
-        })
+        .agg(
+            wind_direction=("avg_wind_dir", circular_mean_degrees),
+            wind_speed=("avg_wind_speed", "mean"),
+        )
         .reset_index()
-        .rename(columns={
-            "avg_wind_dir": "wind_direction",
-            "avg_wind_speed": "wind_speed"
-        })
     )
 
     vectors_seasons["state_fips"] = vectors_seasons["state_fips"].astype(str)
@@ -562,20 +554,27 @@ def calculate_trend_line(df, date_col, value_col):
     
 def compute_raw_state_correlations(df):
     df = df.dropna(subset=['avg_measurement', 'avg_wind_speed'])
-    grouped = df.groupby('state')
-    
+
     records = []
-    for state, group in grouped:
-        corr = group['avg_measurement'].corr(group['avg_wind_speed'])
+    for state, group in df.groupby('state'):
+        corr, p_val = (np.nan, np.nan)
+        if len(group) > 2 and group['avg_measurement'].nunique() > 1 and group['avg_wind_speed'].nunique() > 1:
+            corr, p_val = stats.pearsonr(group['avg_measurement'], group['avg_wind_speed'])
+
+        significance = None
+        if pd.notnull(p_val):
+            significance = 'significant' if p_val < 0.05 else 'not significant'
+
         records.append({
             'state': state,
-            'Correlation': round(corr, 6) if pd.notnull(corr) else None
+            'Correlation': round(float(corr), 6) if pd.notnull(corr) else None,
+            'P-value': float(p_val) if pd.notnull(p_val) else None,
+            'Significance': significance,
         })
-    
+
     result = pd.DataFrame(records)
     result['state_code'] = result['state'].map(state_name_to_code)
     result['state_fips'] = result['state_code'].map(state_code_to_fips)
-    result['Significance'] = 'significant'  # your teammate didn't calculate p-values
     return result
 
 # ---------- Fetch State Name List ----------

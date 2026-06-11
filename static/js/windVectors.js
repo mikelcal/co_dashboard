@@ -100,6 +100,33 @@ function getWindByAbbr(
   return null;
 }
 
+// Normalize the three wind payload shapes — flat {byState}, year-keyed
+// arrays ({ "2014": [...] }), and year→season-keyed objects
+// ({ "2014": { Spring: { GA: {...} } } }) — into a flat array of records,
+// applying year/season filters when given.
+function selectWindRecords(result, { filterYear = null, filterSeason = null } = {}) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (result.byState) return Object.values(result.byState);
+
+  const yearKeys = Object.keys(result).sort();
+  if (!yearKeys.length) return [];
+
+  const yearData = result[String(filterYear ?? yearKeys[0])];
+  if (Array.isArray(yearData)) return yearData;
+
+  if (yearData && typeof yearData === "object") {
+    if (filterSeason && yearData[filterSeason]) {
+      return Object.values(yearData[filterSeason]);
+    }
+    // No season requested: fall back to the first season present
+    const firstSeason = Object.keys(yearData)[0];
+    return firstSeason ? Object.values(yearData[firstSeason]) : [];
+  }
+
+  return [];
+}
+
 async function toggleWindOverlay({
   svg,
   projection,
@@ -109,6 +136,7 @@ async function toggleWindOverlay({
   arrowScale = 0.75,
   trailLayers = 4,
   filterYear = null,
+  filterSeason = null,
 }) {
   if (!svg || svg.empty()) {
     console.warn("SVG not found for wind overlay.");
@@ -127,18 +155,13 @@ async function toggleWindOverlay({
 
   try {
     const result = await useWindData(dataUrl);
-    const data = Array.isArray(result)
-      ? result
-      : result.byState
-      ? Object.values(result.byState)
-      : []; // fallback if structured
+    const data = selectWindRecords(result, { filterYear, filterSeason });
 
     drawWindTrails(svg, data, {
       projection,
       fipsToCentroid,
       arrowScale,
       trailLayers,
-      filterYear,
     });
 
     // Tooltip events now handled on state paths only — no more .wind-arrow bindings
@@ -276,6 +299,7 @@ export {
   toggleWindOverlay,
   removeWindVectors,
   drawWindTrails,
+  selectWindRecords,
   useWindData,
   loadWindData,
   getWindByAbbr,

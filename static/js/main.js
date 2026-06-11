@@ -100,6 +100,7 @@ let getValue = (fips, key) => {
 let updateTooltip = function (fips) {
   const abbr = fipsToAbbr.get(fips);
   const meta = animatedData?.[abbr];
+  if (!meta) return;
   const tooltip = d3.select("#tooltip");
   const stateMeta = { name: meta.state, abbr, fips };
 
@@ -117,7 +118,11 @@ let updateTooltip = function (fips) {
     const key = `${year}-${season}`;
     label = `Season: ${season} ${year}`;
     coVal = getValue(fips, key);
-    wind = getWindByAbbr(abbr, { mode: "seasonal", year, season });
+    // Seasonal vectors are only cached if that URL was fetched; fall back
+    // to the yearly vectors the overlay actually draws in animated mode.
+    wind =
+      getWindByAbbr(abbr, { mode: "seasonal", year, season }) ??
+      getWindByAbbr(abbr, { mode: "animated", year });
   }
   // console.log(
   //   `Updating tooltip for ${abbr} (${fips}) in ${currentMode} mode. META: ${JSON.stringify(
@@ -243,6 +248,8 @@ function renderStateLabels(svg, states) {
 
 function updateMap(yearIndex) {
   currentYearIndex = yearIndex;
+  // Keep the autoplay index in sync so play resumes from the scrubbed frame
+  currentIndex = yearIndex;
 
   const updateYearLabel = () => {
     document.querySelectorAll(".year-label").forEach((el) => {
@@ -500,7 +507,16 @@ function computeTrend(data, yAccessor) {
   return { slope, intercept };
 }
 
-function loadUSMapData(mode) {
+// Year the wind overlay should show for the current map mode/frame
+function getCurrentFilterYear() {
+  if (currentMapMode !== "animated") return null;
+  if (currentMode === "season") {
+    return progressionValues[currentIndex]?.year ?? null;
+  }
+  return years[currentYearIndex] ?? null;
+}
+
+function loadUSMapData() {
   return fetch("/static/data/states-10m.json")
     .then((res) => {
       if (!res.ok) throw new Error("Local fetch failed");
@@ -530,8 +546,9 @@ function loadUSMapData(mode) {
             svg,
             projection,
             fipsToCentroid,
-            dataUrl: WIND_VECTOR_URLS[mode],
+            dataUrl: WIND_VECTOR_URLS[currentMapMode],
             active: windOverlayActive,
+            filterYear: getCurrentFilterYear(),
           });
         });
 
@@ -767,7 +784,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .catch((err) => console.error("Failed to load animation data:", err));
 
-  loadUSMapData("static")
+  loadUSMapData()
     .then(() => drawMap("static"))
     .catch((err) =>
       console.error("US Map failed to load from both sources:", err)
@@ -2482,7 +2499,13 @@ function initWindControls(windYears) {
   });
 
   slider.addEventListener("input", (e) => {
-    windYearIndex = e.target.value;
+    // Pause autoplay so it doesn't fight the user's drag
+    if (windRoseIsPlaying) {
+      clearInterval(windRoseTimer);
+      windRoseIsPlaying = false;
+      setButtonState(false);
+    }
+    windYearIndex = +e.target.value;
     drawWindRoseFrame(windYears[windYearIndex]);
   });
 }

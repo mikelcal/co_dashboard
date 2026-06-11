@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-from flask_cors import CORS
+import os
+
+from flask import Flask, render_template, request, jsonify
 import data_prep
 
 app = Flask(__name__)
-CORS(app)
-app.secret_key = "mids_209"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-not-secret")
 
 # Load pre-filtered 2014–2024 data once
 full_df = data_prep.load_filtered_data()
@@ -28,16 +28,6 @@ def healthz():
 def get_states():
     states = data_prep.get_unique_states(full_df)
     return jsonify(states)
-
-@app.route("/us_data", methods=["GET"])
-def us_data():
-    return jsonify(full_df.to_dict(orient='records'))
-
-@app.route("/state_data", methods=["POST"])
-def state_data():
-    selected_state = request.json.get('state')
-    filtered = full_df[full_df['state'] == selected_state]
-    return jsonify(filtered.to_dict(orient='records'))
 
 @app.route("/correlation_data", methods=["GET"])
 def correlation_data():
@@ -202,4 +192,4 @@ def wind_vectors_seasonal():
     return jsonify(data_prep.clean_for_json(grouped_data))
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
