@@ -187,7 +187,58 @@ function removeWindVectors(svg) {
   }
 }
 
-// Function to draw animated wind trails (spikes) using D3 transitions
+const windReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Wind speed (now mph after the unit fix) → arrow length in px. A scale keeps
+// this robust to the data's range instead of a raw multiplier tuned to the old
+// tenths-of-m/s magnitudes.
+const windLengthScale = d3.scaleLinear().domain([0, 20]).range([8, 48]).clamp(true);
+
+function arrowHeadPath(len) {
+  const w = 5; // half-width of the head
+  const tip = -len;
+  return `M ${-w} ${tip + w * 1.6} L 0 ${tip} L ${w} ${tip + w * 1.6} Z`;
+}
+
+function attachWindTooltip(selection, windTooltipId) {
+  selection
+    .on("mouseover", function (event, d) {
+      const tooltip = d3.select(`#${windTooltipId}`);
+      const existingHTML = tooltip.html() || "";
+      if (!existingHTML.includes("Wind:")) {
+        const deg = d.wind_direction;
+        const dir = degreesToCardinal(deg);
+        tooltip.html(
+          existingHTML +
+            `
+            <div class="wind-info">
+              <hr style="margin: 4px 0;">
+              <strong>Wind:</strong><br>
+              Speed: ${d.wind_speed.toFixed(1)} mph<br>
+              From: ${dir} (${Math.round(deg)}°)
+            </div>
+          `
+        );
+      }
+      tooltip.style("visibility", "visible");
+    })
+    .on("mousemove", (event) => {
+      d3.select(`#${windTooltipId}`)
+        .style("top", `${event.pageY - 40}px`)
+        .style("left", `${event.pageX + 15}px`);
+    })
+    .on("mouseout", () => {
+      d3.select(`#${windTooltipId}`).style("visibility", "hidden");
+    });
+}
+
+// Draw one persistent arrow per state and transition its rotation/length
+// between years, so direction change over time is actually visible. Arrows
+// point in the direction the wind flows *to* (wind_direction is the
+// meteorological "from" bearing, hence the +180).
 function drawWindTrails(
   svg,
   data,
@@ -195,9 +246,7 @@ function drawWindTrails(
     projection,
     fipsToCentroid,
     windTooltipId = "tooltip",
-    trailLayers = 4,
-    arrowScale = 2,
-    animationDuration = 2000,
+    animationDuration = 1500,
   } = {}
 ) {
   if (!svg || svg.empty()) return;
@@ -206,93 +255,62 @@ function drawWindTrails(
     return;
   }
 
-  // Remove existing trails
-  svg.selectAll("g.wind-trails").remove();
+  const records = (data || []).filter(
+    (d) =>
+      d &&
+      d.wind_direction != null &&
+      d.wind_speed != null &&
+      fipsToCentroid.get(d.state_fips)
+  );
 
-  // Create new container group
-  const g = svg.append("g").attr("class", "wind-trails");
-  const tooltip = d3.select(`#${windTooltipId}`);
+  const arrowTransform = (d) => {
+    const [cx, cy] = projection(fipsToCentroid.get(d.state_fips));
+    return `translate(${cx},${cy}) rotate(${(d.wind_direction || 0) + 180})`;
+  };
 
-  data.forEach((d) => {
-    const centroid = fipsToCentroid.get(d.state_fips);
-    if (!centroid) return;
+  // Keep the container group across updates instead of tearing it down each frame
+  let g = svg.select("g.wind-trails");
+  if (g.empty()) g = svg.append("g").attr("class", "wind-trails");
 
-    const [lon, lat] = centroid;
-    const [cx, cy] = projection([lon, lat]);
-    const angle = d.wind_direction;
-    const length = d.wind_speed * arrowScale;
+  const groups = g
+    .selectAll("g.wind-arrow")
+    .data(records, (d) => d.state_fips)
+    .join(
+      (enter) => {
+        const grp = enter
+          .append("g")
+          .attr("class", "wind-arrow")
+          .attr("transform", arrowTransform);
+        grp
+          .append("line")
+          .attr("x1", 0)
+          .attr("y1", 0)
+          .attr("x2", 0)
+          .attr("y2", (d) => -windLengthScale(d.wind_speed))
+          .attr("stroke", "#00f0ff")
+          .attr("stroke-width", 2.5)
+          .attr("stroke-linecap", "round");
+        grp
+          .append("path")
+          .attr("fill", "#00f0ff")
+          .attr("d", (d) => arrowHeadPath(windLengthScale(d.wind_speed)));
+        attachWindTooltip(grp, windTooltipId);
+        return grp;
+      },
+      (update) => update,
+      (exit) => exit.remove()
+    );
 
-    // Create group for all trail segments of a single arrow
-    const group = g
-      .append("g")
-      .attr("transform", `translate(${cx},${cy}) rotate(${angle})`)
-      .attr("class", "wind-arrow")
-      .on("mouseover", (event) => {
-        const tooltip = d3.select("#tooltip");
-        const existingHTML = tooltip.html() || "";
-        const deg = d.wind_direction;
-        const dir = degreesToCardinal(deg);
+  const animate = (sel) =>
+    windReducedMotion
+      ? sel
+      : sel.transition().duration(animationDuration).ease(d3.easeCubicInOut);
 
-        // Don’t add twice
-        const alreadyHasWind = existingHTML.includes("Wind:");
-
-        if (!alreadyHasWind) {
-          const windInfo = `
-            <div class="wind-info">
-              <hr style="margin: 4px 0;">
-              <strong>Wind:</strong><br>
-              Speed: ${d.wind_speed.toFixed(1)} mph<br>
-              Direction: ${dir} (${Math.round(deg)}°)
-            </div>
-          `;
-          tooltip.html(existingHTML + windInfo);
-        }
-
-        tooltip.style("visibility", "visible");
-      })
-      .on("mousemove", (event) => {
-        d3.select("#tooltip")
-          .style("top", `${event.pageY - 40}px`)
-          .style("left", `${event.pageX + 15}px`);
-      })
-      .on("mouseout", () => {
-        d3.select("#tooltip").style("visibility", "hidden");
-      });
-
-    // Add trail segments (reversed: brightest at tip)
-    for (let i = 0; i < trailLayers; i++) {
-      const lineLength = (length * (i + 1)) / trailLayers;
-      const opacity = ((i + 1) / trailLayers) * 0.8; // fade out
-      const delay = (i * animationDuration) / trailLayers;
-
-      group
-        .append("line")
-        .attr("class", "wind-arrow")
-        .attr("x1", 0)
-        .attr("y1", 0)
-        .attr("x2", 0)
-        .attr("y2", -lineLength)
-        .attr("stroke", "#00f0ff")
-        .attr("stroke-width", 2.5)
-        .attr("stroke-linecap", "round")
-        .style("opacity", 0)
-        .transition()
-        .delay(delay)
-        .duration(animationDuration)
-        .ease(d3.easeLinear)
-        .style("opacity", opacity)
-        .on("end", function repeat() {
-          d3.select(this)
-            .style("opacity", 0)
-            .transition()
-            .delay(delay)
-            .duration(animationDuration)
-            .ease(d3.easeLinear)
-            .style("opacity", opacity)
-            .on("end", repeat);
-        });
-    }
-  });
+  animate(groups).attr("transform", arrowTransform);
+  animate(groups.select("line")).attr("y2", (d) => -windLengthScale(d.wind_speed));
+  animate(groups.select("path")).attr("d", (d) =>
+    arrowHeadPath(windLengthScale(d.wind_speed))
+  );
 }
 
 export {

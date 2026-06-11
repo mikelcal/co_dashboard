@@ -140,6 +140,14 @@ def load_filtered_data(filepath: Path | None = None) -> pd.DataFrame:
     df["region"] = df["state"].apply(assign_region)
     df["state_code"] = df["state"].map(state_name_to_code)
     df["state_fips"] = df["state_code"].map(state_code_to_fips)
+
+    # avg_wind_speed arrives as GHCN AWND in tenths of m/s (verified: raw mean
+    # ~35 → ~7.8 mph). Convert to mph so every "mph" label/bin downstream is
+    # truthful, and drop physically-impossible readings (negatives, sensor
+    # spikes up to 2120) before they distort means and scales.
+    MPH_PER_TENTH_MPS = 1 / 10 * 2.23694
+    ws = df["avg_wind_speed"]
+    df["avg_wind_speed"] = ws.where((ws >= 0) & (ws <= 500)) * MPH_PER_TENTH_MPS
     return df
 
 
@@ -214,8 +222,9 @@ def get_yearly_trends(df):
 
     return yearly_trends
 
-def get_state_averages_with_trend():
-    df = load_filtered_data()
+def get_state_averages_with_trend(df=None):
+    if df is None:
+        df = load_filtered_data()
 
     grouped = df.groupby("state").agg({
         "avg_measurement": "mean",
@@ -357,45 +366,32 @@ def get_animated_co_data(df):
       ...
     }
     """
+    work = df[["state_code", "state", "state_fips", "date_local", "avg_measurement"]].copy()
+    work["year_key"] = work["date_local"].dt.year.astype(str)
+    work["month_key"] = work["date_local"].dt.strftime("%Y-%m")
+    work["season_key"] = work["year_key"] + "-" + work["date_local"].dt.month.map(assign_season)
+
     output = {}
+    for code, name, fips in (
+        work[["state_code", "state", "state_fips"]].drop_duplicates().itertuples(index=False)
+    ):
+        output[code] = {
+            "state_code": code,
+            "state": name,
+            "state_fips": str(fips),
+            "year": {},
+            "month": {},
+            "season": {},
+        }
 
-    for _, row in df.iterrows():
-        code = row["state_code"]
-        name = row["state"]
-        fips = row["state_fips"]
-        date = row["date_local"]
-        year = date.year
-        month = date.month
-        season = assign_season(month)
-
-        if code not in output:
-            output[code] = {
-                "state_code": code,
-                "state": name,
-                "state_fips": fips,
-                "year": {},
-                "month": {},
-                "season": {}
-            }
-
-        # Build time keys
-        year_key = str(year)
-        month_key = f"{year}-{month:02d}"
-        season_key = f"{year}-{season}"
-
-        # Append values
-        output[code]["year"].setdefault(year_key, []).append(row["avg_measurement"])
-        output[code]["month"].setdefault(month_key, []).append(row["avg_measurement"])
-        output[code]["season"].setdefault(season_key, []).append(row["avg_measurement"])
-
-    # Collapse lists to averages
-    for state in output:
-        for period_type in ["year", "month", "season"]:
-            for key, values in output[state][period_type].items():
-                if values:
-                    output[state][period_type][key] = round(sum(values) / len(values), 3)
-                else:
-                    output[state][period_type][key] = None
+    # One vectorized groupby per granularity instead of a per-row Python loop
+    # over ~686k rows (was ~3.9 s/request).
+    for period_type, key_col in (("year", "year_key"), ("month", "month_key"), ("season", "season_key")):
+        means = work.groupby(["state_code", key_col])["avg_measurement"].mean().round(3)
+        for (code, key), value in means.items():
+            entry = output.get(code)
+            if entry is not None:
+                entry[period_type][key] = None if pd.isna(value) else float(value)
 
     return output
 
@@ -500,23 +496,10 @@ def calculate_correlation(df, group_by_cols):
             x = group['avg_measurement']
             y = group['avg_wind_speed']
 
-            # Debug print
-            print(f"[DEBUG] group: {name}")
-            if isinstance(x, pd.Series):
-                print(f"[DEBUG] x dtype: {x.dtype}, head:\n{x.head()}")
-            else:
-                print(f"[DEBUG] x type: {type(x)}, columns: {x.columns.tolist()}")
-            if isinstance(y, pd.Series):
-                print(f"[DEBUG] y dtype: {y.dtype}, head:\n{y.head()}")
-            else:
-                print(f"[DEBUG] y type: {type(y)}, columns: {y.columns.tolist()}")
-
             try:
                 corr, p_val = stats.pearsonr(x.astype(float), y.astype(float))
-                print(f"[DEBUG] corr: {corr}, p_val raw: {p_val} (type: {type(p_val)})")
                 p_val = float(p_val)
-            except Exception as e:
-                print(f"[ERROR] Pearson failed for group: {name} — {e}")
+            except Exception:
                 continue
 
             sig = "significant" if p_val < 0.05 else "not significant"

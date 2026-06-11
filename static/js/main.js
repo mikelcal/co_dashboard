@@ -47,9 +47,31 @@ let brush, brushGroup;
 
 // treemap regions
 let selectedRegions = new Set(["Northern", "Southern", "Other"]);
+// Treemap data is static — fetch once, then filter client-side on legend toggles
+let treemapData = null;
 
 // Default dropdown state
 const defaultState = "Georgia";
+
+// Calendar season order (data arrives alphabetically: Fall, Spring, Summer, Winter)
+const SEASON_ORDER = ["Winter", "Spring", "Summer", "Fall"];
+const seasonRank = (s) => {
+  const i = SEASON_ORDER.indexOf(s);
+  return i === -1 ? SEASON_ORDER.length : i;
+};
+// Sort "YYYY-Season" keys by year, then calendar season order
+const sortSeasonKeys = (keys) =>
+  [...keys].sort((a, b) => {
+    const [ay, as] = a.split("-");
+    const [by, bs] = b.split("-");
+    return ay === by ? seasonRank(as) - seasonRank(bs) : ay.localeCompare(by);
+  });
+
+// Honor reduced-motion preference for autoplaying animations
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Global Wind Rose Variables
 let windRoseTimer = null;
@@ -213,6 +235,28 @@ function debounce(func, wait) {
   };
 }
 
+// Run `startFn` only once the element scrolls into view, so animations don't
+// autoplay off-screen. Falls back to running immediately if unsupported.
+function observeAutoplay(elementId, startFn) {
+  const el = document.getElementById(elementId);
+  if (!el || typeof IntersectionObserver === "undefined") {
+    startFn();
+    return;
+  }
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          startFn();
+          observer.disconnect();
+        }
+      });
+    },
+    { threshold: 0.25 }
+  );
+  observer.observe(el);
+}
+
 function renderStateLabels(svg, states) {
   if (stateLabelGroup) stateLabelGroup.remove();
 
@@ -344,7 +388,7 @@ function updateMapSeasons(index = 0) {
   const sample = Object.values(animatedData)[0];
   if (!sample || !sample.season) return;
 
-  const seasonKeys = Object.keys(sample.season).sort(); // ["2014-Fall", "2014-Spring", ...]
+  const seasonKeys = sortSeasonKeys(Object.keys(sample.season)); // calendar order: 2014-Winter, 2014-Spring, ...
   progressionValues = seasonKeys.map((k) => {
     const [year, season] = k.split("-");
     return { year, season, key: k };
@@ -724,31 +768,8 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Failed to load comparison data:", err);
       });
   });
-  // Load Treemap
-  fetch("/treemap_data")
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("Treemap data:", data);
-
-      drawTreemap(data, {
-        valueAccessor: (d) => d.value,
-        groupAccessor: (d) => d.region,
-        labelAccessor: (d) => d.id,
-        containerId: "treemapContainer",
-        width: 800,
-        height: 500,
-      });
-    })
-    .catch((err) => {
-      console.error("Failed to load legend data:", err);
-    });
-
-  const containerId = "treemapContainer";
-  const color = d3
-    .scaleOrdinal()
-    .domain(Object.keys(regionColors))
-    .range(Object.values(regionColors));
-
+  // Treemap: updateTreemap() fetches once, caches, and draws the (initially
+  // all-regions) view — no separate unfiltered fetch needed.
   renderLegend();
   updateTreemap();
 
@@ -759,7 +780,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return res.json();
     })
     .then((data) => {
-      console.log("Seasonal data loaded:", data);
       drawSeasonalComparisonChart({
         data: data.north,
         containerId: "northChart",
@@ -779,7 +799,6 @@ document.addEventListener("DOMContentLoaded", () => {
   fetch("/wind_rose/animated?type=wind")
     .then((res) => res.json())
     .then((data) => {
-      console.log("Fetched animated wind rose data:", data);
       startStackedWindRoseAnimation(data);
     })
     .catch((err) => console.error("Failed to load animation data:", err));
@@ -1709,27 +1728,39 @@ function toggleRegion(region) {
   renderLegend(); // refresh checkmarks
 }
 
+function renderTreemapFromCache() {
+  const filtered = treemapData.filter(
+    (d) => d.parentId === "" || selectedRegions.has(d.region)
+  );
+
+  drawTreemap(filtered, {
+    containerId: "treemapContainer",
+    valueAccessor: (d) => d.value,
+    groupAccessor: (d) => d.region,
+    labelAccessor: (d) =>
+      `${d.id}
+    ${d.value != null ? d.value.toFixed(2) + " ppm" : ""}`,
+    width: 800,
+    height: 500,
+  });
+}
+
 function updateTreemap() {
   // loader container
   showLoader(loaders.treemap);
 
+  // Static data: fetch on first call, then redraw from cache on legend toggles.
+  if (treemapData) {
+    renderTreemapFromCache();
+    hideLoader(loaders.treemap);
+    return;
+  }
+
   fetch("/treemap_data")
     .then((res) => res.json())
     .then((data) => {
-      const filtered = data.filter(
-        (d) => d.parentId === "" || selectedRegions.has(d.region)
-      );
-
-      drawTreemap(filtered, {
-        containerId: "treemapContainer",
-        valueAccessor: (d) => d.value,
-        groupAccessor: (d) => d.region,
-        labelAccessor: (d) =>
-          `${d.id}
-    ${d.value != null ? d.value.toFixed(2) + " ppm" : ""}`,
-        width: 800,
-        height: 500,
-      });
+      treemapData = data;
+      renderTreemapFromCache();
     })
     .catch((err) => {
       console.error("Treemap load error:", err);
@@ -2074,23 +2105,17 @@ function getTrendLine(xVals, yVals) {
   return { slope, intercept };
 }
 
-document.addEventListener("click", function (event) {
-  const clickedInsideChart = event.target.closest("svg#groupedBarChart");
-
-  if (!clickedInsideChart && fullDataSet) {
-    // Recalculate trend + rebuild full chart
-    const wind = fullDataSet.map((d) => d.avg_wind_speed);
-    const co = fullDataSet.map((d) => d.avg_measurement);
-    const trend = getTrendLine(wind, co);
-
-    drawGroupedBarChart({
-      data: fullDataSet,
-      correlation: fullDataSet.correlation,
-      containerId: "groupedBarChart",
-      width: CHART_WIDTH,
-      height: CHART_HEIGHT,
-    });
-  }
+// Reset the brushed selection back to the full chart. Scoped to a dedicated
+// button instead of every document click (which also rebuilt on dropdown clicks).
+document.getElementById("resetBrushButton")?.addEventListener("click", () => {
+  if (!fullDataSet) return;
+  drawGroupedBarChart({
+    data: fullDataSet,
+    correlation: fullDataSet.correlation,
+    containerId: "groupedBarChart",
+    width: CHART_WIDTH,
+    height: CHART_HEIGHT,
+  });
 });
 
 // Function to draw seasonal comparison chart
@@ -2104,6 +2129,9 @@ function drawSeasonalComparisonChart({
   const margin = { top: 60, right: 60, bottom: 60, left: 60 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
+
+  // Calendar season order instead of the alphabetical order the data arrives in
+  data = [...data].sort((a, b) => seasonRank(a.season) - seasonRank(b.season));
 
   const svg = d3
     .select(`#${containerId}`)
@@ -2125,13 +2153,15 @@ function drawSeasonalComparisonChart({
 
   const yLeft = d3
     .scaleLinear()
-    .domain([0, 0.35]) // dynamic disabled d3.max(data, (d) => d.avg_measurement)])
+    .domain([0, (d3.max(data, (d) => d.avg_measurement) || 0.35) * 1.15])
     .nice()
     .range([chartHeight, 0]);
 
+  // Wind speed is now in mph (~5–10), so derive the domain instead of the
+  // old hardcoded [0, 40] that assumed tenths-of-m/s.
   const yRight = d3
     .scaleLinear()
-    .domain([0, 40]) // dynamic disabled d3.max(data, (d) => d.avg_wind_speed)])
+    .domain([0, (d3.max(data, (d) => d.avg_wind_speed) || 10) * 1.15])
     .nice()
     .range([chartHeight, 0]);
 
@@ -2244,7 +2274,6 @@ function loadWindRose(state) {
   })
     .then((res) => res.json())
     .then((data) => {
-      console.log("Wind rose data:", data);
       drawWindRose("#windRoseChart", data);
       drawWindLegend("#stWindRoseLegend");
     })
@@ -2274,111 +2303,136 @@ function handleMouseOut() {
   d3.select("#tooltip").style("visibility", "hidden");
 }
 
-// Function to draw wind rose chart
-function drawWindRose(containerId, data) {
-  const container = d3.select(containerId);
-  container.selectAll("*").remove(); // Clear previous chart
+// Speed categories + palette, shared by the rose chart and its legend
+const WIND_ROSE_SPEED_ORDER = [
+  "Light (<10)",
+  "Moderate (10-20)",
+  "Strong (20-30)",
+  "Very Strong (30-40)",
+  "Extreme (>40)",
+];
+const WIND_ROSE_COLORS = ["#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"];
+const WIND_ROSE_DIR_LABELS = [
+  "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+  "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+];
 
+// Shared maximum stacked radius across every year/region, so the radial scale
+// is comparable frame-to-frame instead of being recomputed per frame.
+let windRoseRadiusMax = 0;
+
+function binTotal(rec) {
+  return WIND_ROSE_SPEED_ORDER.reduce((s, k) => s + (rec[k] || 0), 0);
+}
+
+// Compute one global radius domain spanning all regions and years.
+function buildWindRoseScales(data) {
+  let max = 0;
+  Object.values(data || {}).forEach((regionObj) => {
+    Object.values(regionObj || {}).forEach((yearArr) => {
+      (yearArr || []).forEach((rec) => {
+        const total = binTotal(rec);
+        if (total > max) max = total;
+      });
+    });
+  });
+  windRoseRadiusMax = max || 1;
+}
+
+// Draw/animate a wind rose. With `persist` the SVG is kept and arcs transition
+// between frames; `radiusMax` fixes the radial domain for cross-frame
+// comparability (falls back to the frame's own max for the static per-state rose).
+function drawWindRose(containerId, data, { radiusMax = null, persist = false } = {}) {
   const width = 500;
   const height = 500;
   const margin = 40;
   const radius = Math.min(width, height) / 2 - margin;
 
-  const svg = container
-    .append("svg")
-    .attr("viewBox", `0 0 ${width} ${height}`)
-    .attr("preserveAspectRatio", "xMidYMid meet")
-    .append("g")
-    .attr("transform", `translate(${width / 2},${height / 2})`);
-
-  const directionLabels = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ];
-
-  const speedOrder = [
-    "Light (<10)",
-    "Moderate (10-20)",
-    "Strong (20-30)",
-    "Very Strong (30-40)",
-    "Extreme (>40)",
-  ];
-
   const colorScale = d3
     .scaleOrdinal()
-    .domain(speedOrder)
-    .range(["#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"]);
+    .domain(WIND_ROSE_SPEED_ORDER)
+    .range(WIND_ROSE_COLORS);
 
-  // Stack the data by speed category
+  // Normalize to all 16 direction bins (fill gaps with zeros) so arcs keep a
+  // stable identity across frames and don't shift when a bin is empty.
+  const byBin = new Map((data || []).map((d) => [d.direction_bin, d]));
+  const rows = d3.range(16).map((bin) => {
+    const rec = byBin.get(bin) || {};
+    const out = { direction_bin: bin };
+    WIND_ROSE_SPEED_ORDER.forEach((k) => (out[k] = rec[k] || 0));
+    return out;
+  });
+
+  const angleScale = d3.scaleBand().domain(d3.range(16)).range([0, 2 * Math.PI]);
+  const maxR = radiusMax != null ? radiusMax : d3.max(rows, binTotal) || 1;
+  const radiusScale = d3.scaleLinear().domain([0, maxR]).range([0, radius]);
+
   const stackedData = d3
     .stack()
-    .keys(speedOrder)
-    .value((d, key) => d[key] || 0)(data);
+    .keys(WIND_ROSE_SPEED_ORDER)
+    .value((d, key) => d[key] || 0)(rows);
 
-  const angleScale = d3
-    .scaleBand()
-    .domain(data.map((d) => d.direction_bin))
-    .range([0, 2 * Math.PI]);
-
-  const radiusScale = d3
-    .scaleLinear()
-    .domain([0, d3.max(stackedData[stackedData.length - 1], (d) => d[1])])
-    .range([0, radius]);
-
-  function arcPath(d, j, radiusScale, angleScale) {
+  function arcPath(d) {
     const a0 = angleScale(d.data.direction_bin);
     const a1 = a0 + angleScale.bandwidth();
-    const r0 = radiusScale(d[0]);
-    const r1 = radiusScale(d[1]);
-
     return d3
       .arc()
-      .innerRadius(r0)
-      .outerRadius(r1)
+      .innerRadius(radiusScale(d[0]))
+      .outerRadius(radiusScale(d[1]))
       .startAngle(a0)
       .endAngle(a1)();
   }
 
-  // Draw layers
-  stackedData.forEach((layer, i) => {
-    svg
-      .selectAll(`.arc-${i}`)
-      .data(layer)
-      .join(
-        (enter) =>
-          enter
-            .append("path")
-            .attr("fill", colorScale(speedOrder[i]))
-            .attr("stroke", "#fff")
-            .attr("d", (d, j) => arcPath(d, j, radiusScale, angleScale))
-            .on("mouseover", handleMouseOver)
-            .on("mousemove", handleMouseMove)
-            .on("mouseout", handleMouseOut),
-        (update) =>
-          update
-            .transition()
-            .duration(500)
-            .attr("d", (d, j) => arcPath(d, j, radiusScale, angleScale)),
-        (exit) => exit.remove()
-      );
-  });
-  // Add radial grid lines
-  svg
-    .append("g")
+  // Persistent root: build once, then update in place.
+  let root = d3.select(containerId).select("svg g.rose-root");
+  if (root.empty()) {
+    d3.select(containerId).selectAll("*").remove();
+    root = d3
+      .select(containerId)
+      .append("svg")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .append("g")
+      .attr("class", "rose-root")
+      .attr("transform", `translate(${width / 2},${height / 2})`);
+    root.append("g").attr("class", "rose-arcs");
+    root.append("g").attr("class", "rose-grid");
+    root.append("g").attr("class", "rose-labels");
+  }
+
+  const dur = persist && !prefersReducedMotion ? 600 : 0;
+
+  root
+    .select(".rose-arcs")
+    .selectAll("g.rose-layer")
+    .data(stackedData)
+    .join((enter) =>
+      enter
+        .append("g")
+        .attr("class", "rose-layer")
+        .attr("fill", (layer, i) => colorScale(WIND_ROSE_SPEED_ORDER[i]))
+    )
+    .each(function (layer) {
+      d3.select(this)
+        .selectAll("path")
+        .data(layer, (d) => d.data.direction_bin)
+        .join(
+          (enter) =>
+            enter
+              .append("path")
+              .attr("stroke", "#fff")
+              .attr("d", arcPath)
+              .on("mouseover", handleMouseOver)
+              .on("mousemove", handleMouseMove)
+              .on("mouseout", handleMouseOut),
+          (update) =>
+            dur ? update.transition().duration(dur).attr("d", arcPath) : update.attr("d", arcPath),
+          (exit) => exit.remove()
+        );
+    });
+
+  root
+    .select(".rose-grid")
     .selectAll("circle")
     .data(radiusScale.ticks(4))
     .join("circle")
@@ -2386,17 +2440,17 @@ function drawWindRose(containerId, data) {
     .attr("stroke", "#ccc")
     .attr("r", radiusScale);
 
-  // Add direction labels
-  svg
-    .append("g")
+  // Direction labels at each sector's center (+ half a band), not its start edge.
+  root
+    .select(".rose-labels")
     .selectAll("text")
-    .data(data)
+    .data(d3.range(16))
     .join("text")
     .attr("text-anchor", "middle")
-    .attr("x", (d) => Math.sin(angleScale(d.direction_bin)) * (radius + 15))
-    .attr("y", (d) => -Math.cos(angleScale(d.direction_bin)) * (radius + 15))
-    .text((d) => directionLabels[d.direction_bin])
-    .style("font-size", "16px");
+    .attr("x", (bin) => Math.sin(angleScale(bin) + angleScale.bandwidth() / 2) * (radius + 15))
+    .attr("y", (bin) => -Math.cos(angleScale(bin) + angleScale.bandwidth() / 2) * (radius + 15))
+    .text((bin) => WIND_ROSE_DIR_LABELS[bin])
+    .style("font-size", "14px");
 }
 
 // Function to draw wind rose legend
@@ -2429,24 +2483,28 @@ function drawWindLegend(containerId) {
   });
 }
 
-function startStackedWindRoseAnimation() {
-  fetch("/wind_rose/animated")
-    .then((res) => res.json())
-    .then((data) => {
-      windRoseData = data;
-      windYears = Object.keys(data["Northern"]).map(Number).sort();
-      //console.log("Wind rose years:", windYears);
-      windYearIndex = 0;
+function startStackedWindRoseAnimation(data) {
+  // Data is already fetched by the caller (with the right ?type=); use it
+  // directly instead of issuing a second, argument-less request.
+  windRoseData = data;
+  windYears = Object.keys(data["Northern"]).map(Number).sort();
+  windYearIndex = 0;
 
-      drawWindRoseFrame(windYears[windYearIndex]);
+  buildWindRoseScales(data);
+  drawWindRoseFrame(windYears[windYearIndex]);
 
+  drawWindLegend("#windRoseLegend");
+  initWindControls(windYears); // attach button + slider handlers
+
+  // Don't autoplay off-screen or against a reduced-motion preference; the
+  // IntersectionObserver below starts playback once the rose scrolls into view.
+  observeAutoplay("windRoseNorth", () => {
+    if (!windRoseIsPlaying && !prefersReducedMotion) {
       windRoseTimer = setInterval(playNextYear, 2000);
       windRoseIsPlaying = true;
-
-      drawWindLegend("#windRoseLegend");
-      initWindControls(windYears); // attach button + slider handlers
-    })
-    .catch((err) => console.error("Failed to load animated wind rose:", err));
+      setButtonState(true);
+    }
+  });
 }
 
 // Function to initialize wind rose controls
@@ -2480,7 +2538,7 @@ function initWindControls(windYears) {
     slider.value = 0;
   }
 
-  setButtonState(true); // autoplay is on initially
+  setButtonState(false); // autoplay starts when the rose scrolls into view
 
   playBtn.addEventListener("click", () => {
     if (!windRoseIsPlaying) {
@@ -2519,10 +2577,9 @@ function playNextYear() {
   }
 }
 function drawWindRoseFrame(year) {
-  const containerNorth = "#windRoseNorth";
-  const containerSouth = "#windRoseSouth";
-  drawWindRose(containerNorth, windRoseData["Northern"][year]);
-  drawWindRose(containerSouth, windRoseData["Southern"][year]);
+  const opts = { radiusMax: windRoseRadiusMax, persist: true };
+  drawWindRose("#windRoseNorth", windRoseData["Northern"][year], opts);
+  drawWindRose("#windRoseSouth", windRoseData["Southern"][year], opts);
   document.getElementById("windYearDisplay").textContent = `Year: ${year}`;
   document.getElementById("windYearLabel").textContent = `Year: ${year}`;
 }

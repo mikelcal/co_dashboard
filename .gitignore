@@ -1,4 +1,27 @@
-__pycache__
+# Python
+__pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Local data / DBs
 *.db
+
+# Generated at boot from the LFS CSV (ensure_parquet); no need to track
+static/data/co_wind_v2.parquet
+
+# Env / secrets
+.env
+.env.*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# Claude
 .claude/launch.json

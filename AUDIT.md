@@ -129,31 +129,31 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 - [x] **FIX** dependencies — `CORS(app)` removed entirely (same-origin app); `requirements.txt` pinned and slimmed to the six real runtime deps (SEC-03, SEC-05)
 - [x] **FIX** `templates/w209.html` — `chartsContainer` attribute quoting repaired; class list restored
 
-**P1 — performance & the animation rework**
+**P1 — performance & the animation rework** *(all completed 2026-06-11; verified live in-browser at :5050: zero console errors; animated-CO endpoint 3863 ms → 4 ms; single treemap + wind-rose fetch at load; arrows update per year; rose persists as one SVG; seasonal charts in calendar order with mph axis)*
 
-- [ ] **PERF** `data_prep.py:341-396` — replace `iterrows()` with `groupby` in `get_animated_co_data`; precompute all endpoint payloads at startup (3.9 s → ~ms) (SEC-02)
-- [ ] **PERF** `w209.py:119`, `data_prep.py:214` — stop re-reading parquet per request in `/treemap_data` and `/state_averages`; use the module-level `full_df`
-- [ ] **PERF** `main.js:711-737` — treemap fetched twice at load + once per legend toggle; fetch once, filter client-side
-- [ ] **FIX** `main.js:2415-2433` — `startStackedWindRoseAnimation` should use its passed data (kills duplicate fetch, restores `?type=` support)
-- [ ] **REWORK** wind-rose animation: global radius domain across all years/regions, fixed `d3.range(16)` angle domain, persistent SVG with arc transitions between years (§3.3.2, DV-06)
-- [ ] **REWORK** wind-vector animation: persistent per-state selections with rotate/length transitions between years; flip arrow semantics (`angle + 180`) or document the "from" convention (§3.2.2-3)
-- [ ] **FIX** season ordering: calendar-order comparator for map seasonal progression and seasonal bar charts (§3.3 note, DV-07)
-- [ ] **VERIFY** wind-speed units (mph vs tenths of m/s) and correct all labels, bins, and the hardcoded `[0,40]` domain (DV-03)
-- [ ] **FIX** `main.js:2060-2077` — scope the "reset brush" listener to a Reset button instead of every document click
-- [ ] **PERF** gate autoplaying animations with `IntersectionObserver`; honor `prefers-reduced-motion`
-- [ ] **REMOVE** debug `print()`s in `data_prep.py:512-527` and `console.log`s in `main.js`
+- [x] **PERF** `data_prep.py` — `get_animated_co_data` vectorized with `groupby` (no more `iterrows` over 686k rows); all static payloads precomputed once at startup in `w209.py` (measured: `/choropleth_data/animated` 3863 ms → 4 ms, treemap/state_averages/combo ~0 ms) (SEC-02)
+- [x] **PERF** `w209.py`, `data_prep.py` — `/treemap_data`, `/state_averages`, and every other route now serve module-level precomputed objects; no per-request parquet re-reads (`get_state_averages_with_trend` takes the shared `full_df`)
+- [x] **PERF** `main.js` — treemap fetched once into `treemapData` cache; legend toggles filter client-side via `renderTreemapFromCache()`; redundant load-time fetch removed
+- [x] **FIX** `main.js` — `startStackedWindRoseAnimation(data)` uses its passed data; duplicate argument-less fetch removed, `?type=` honored
+- [x] **REWORK** wind-rose animation: global radius domain (`buildWindRoseScales`/`windRoseRadiusMax`), fixed `d3.range(16)` angle domain, 16-bin normalization, persistent `rose-root` SVG with arc transitions; labels centered at sector mid-angle (§3.3.2, DV-06, DV-05)
+- [x] **REWORK** wind-vector animation: one persistent arrow per state (line + arrowhead) keyed by `state_fips`, rotate/length transitions between years; flipped to flow semantics (`wind_direction + 180`); length via mph scale (§3.2.2-3)
+- [x] **FIX** season ordering: `sortSeasonKeys`/`seasonRank` calendar-order comparator applied to map seasonal progression and seasonal bar charts (verified: Winter→Spring→Summer→Fall) (§3.3 note, DV-07)
+- [x] **VERIFY** wind-speed units — confirmed GHCN tenths-of-m/s (raw mean 35 → 7.4 mph); converted to mph once in `load_filtered_data` (invalid <0 / >500 dropped), so all "mph" labels/bins are now truthful; seasonal `[0,40]` domain replaced with dynamic mph domain (DV-03)
+- [x] **FIX** `main.js` — reset-brush logic moved off the document-wide click listener onto a dedicated `#resetBrushButton` (added to `w209.html`)
+- [x] **PERF** wind-rose autoplay gated by `IntersectionObserver` (starts on scroll-into-view) and `prefers-reduced-motion` (verified: suppressed under reduced-motion); wind trails honor reduced-motion too
+- [x] **REMOVE** debug `print()`s in `data_prep.py` `calculate_correlation` and the active `console.log`s in `main.js`
 
 **P2 — security hardening & repo hygiene**
 
 - [x] Secret key from environment with dev-only fallback (`w209.py`) (SEC-04) — *Done 2026-06-10*
-- [ ] Validate POST `state` against known states; return 400/404 JSON; `get_json(silent=True)` (SEC-09)
-- [ ] Pin + SRI (or vendor) the D3 and TopoJSON CDN scripts (SEC-06)
+- [x] Validate POST `state` against known states; return 400/404 JSON; `get_json(silent=True)` (SEC-09) — *Done 2026-06-11: `_require_state()` helper on `/state_comparison` + `/wind_rose`; verified valid→200, unknown→404, missing→400, non-JSON→400.*
+- [x] Pin + SRI (or vendor) the D3 and TopoJSON CDN scripts (SEC-06) — *Done 2026-06-11: pinned d3@7.9.0 + topojson@3.0.2 with sha384 SRI (byte-identical to the floating tags); verified d3 7.9.0 loads in-browser.*
 - [x] Gate `debug=True` behind `FLASK_DEBUG=1` env var in `app.py`/`w209.py` (SEC-07) — *Done 2026-06-10*
-- [ ] Add security headers via `@app.after_request` (SEC-08)
+- [x] Add security headers via `@app.after_request` (SEC-08) — *Done 2026-06-11: CSP (strict `script-src`, no `unsafe-inline`), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`; verified zero CSP violations, all CDN scripts/fonts/charts load.*
 - [x] ~~`git rm players_20.db` (25 MB unrelated FIFA SQLite) (SEC-10)~~ — *Done 2026-06-10: purged from history with `git filter-repo`, `*.db` gitignored, rewrite force-pushed.*
-- [ ] Move `co_wind_v2.parquet` to LFS or generate at boot; expand `.gitignore`; audit `images/` screenshots for account info (SEC-11)
-- [ ] `rel="noopener noreferrer"` on `target="_blank"` links; replace tinyurl with direct EPA URLs (SEC-12, SEC-13)
-- [ ] `preload_app = True` in `gunicorn_config.py` (SEC-15)
+- [x] Move `co_wind_v2.parquet` to LFS or generate at boot; expand `.gitignore`; audit `images/` screenshots for account info (SEC-11) — *Done 2026-06-11: parquet `git rm --cached` + gitignored (regenerated at boot from the LFS CSV); `.gitignore` expanded; the 9 DigitalOcean console screenshots removed from the repo.*
+- [x] `rel="noopener noreferrer"` on `target="_blank"` links; replace tinyurl with direct EPA URLs (SEC-12, SEC-13) — *Done 2026-06-11: both `tinyurl.com/mubjf8wv` links → `https://www.epa.gov/report-environment/indoor-air-quality`; `rel` added to all external links.*
+- [x] `preload_app = True` in `gunicorn_config.py` (SEC-15) — *Done: already present, binds loopback `127.0.0.1:5000`.*
 - [x] Remove unused heavy imports (`matplotlib`, `seaborn` from `data_prep.py`) and unused requirements (`altair`, `networkx`, `scikit-learn`, `seaborn`, `matplotlib`) — *Done 2026-06-10*
 
 **P3 — polish & craft (portfolio impact)**

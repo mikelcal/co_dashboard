@@ -57,8 +57,8 @@
               Exposure to elevated levels of CO can lead to headaches, dizziness, nausea, and even death.
             </p>
             <p class="small mb-0">
-              <em>Source: <a href="https://tinyurl.com/mubjf8wv" target="_blank"
-                  class="text-white text-decoration-underline">Environmental Protection Agency</a></em>
+              <em>Source: <a href="https://www.epa.gov/report-environment/indoor-air-quality" target="_blank"
+                  rel="noopener noreferrer" class="text-white text-decoration-underline">Environmental Protection Agency</a></em>
             </p>
           </div>
         </div>
@@ -90,7 +90,7 @@
 
               <!-- Right: Berkeley Seal on White -->
               <div class="col-md-4 d-flex flex-column justify-content-center align-items-center p-4 bg-white">
-                <a href="https://www.ischool.berkeley.edu/programs/mids" target="_blank" class="mb-2">
+                <a href="https://www.ischool.berkeley.edu/programs/mids" target="_blank" rel="noopener noreferrer" class="mb-2">
                   <img src="{{ url_for('static', filename='images/berkeley-seal.png') }}"
                     alt="UC Berkeley School of Information Seal" style="height: 90px;" />
                 </a>
@@ -111,10 +111,10 @@
 
       <div class="image-credit">
         <small class="text-white-50">
-          Photo by <a
+          Photo by <a target="_blank" rel="noopener noreferrer"
             href="https://unsplash.com/@nickhh?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Nick
             Herasimenka</a> on
-          <a
+          <a target="_blank" rel="noopener noreferrer"
             href="https://unsplash.com/photos/city-skyline-across-bridge-during-daytime-rYGQ49W1wqc?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
         </small>
       </div>
@@ -157,6 +157,11 @@
     <div class="row my-5">
       <div class="col-8">
         <div id="groupedBarWrapper">
+          <div class="text-end mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="resetBrushButton">
+              Reset selection
+            </button>
+          </div>
           <svg id="groupedBarChart" width="100%" height="100%"></svg>
           <div id="groupedBarLoader" class="chart-loader-overlay">
             <div class="spinner-grow text-primary" role="status">
@@ -392,7 +397,8 @@
             inversions that trap pollutants (Environmental Protection Agency). As summer arrives, the combination of
             reduced heating needs and increased atmospheric mixing creates what could be considered an "annual minimum"
             or reset period for carbon monoxide concentrations in many regions.</p><small>Source: <a
-              href="https://tinyurl.com/mubjf8wv">Environmental Protection Agency</a></small>
+              href="https://www.epa.gov/report-environment/indoor-air-quality" target="_blank"
+              rel="noopener noreferrer">Environmental Protection Agency</a></small>
         </div>
         <div class="container text-center my-4">
           <div class="row justify-content-center">
@@ -492,11 +498,15 @@
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
 
-  <!-- Import D3 version 7 -->
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <!-- Import D3 (pinned + SRI to prevent a compromised/breaking upstream publish) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"
+    integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
+    crossorigin="anonymous"></script>
 
-  <!-- Import TopoJSON -->
-  <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
+  <!-- Import TopoJSON (pinned + SRI) -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson@3.0.2/dist/topojson.min.js"
+    integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq"
+    crossorigin="anonymous"></script>
 
   <!-- Import custom JS functionality -->
   <script type="module" src="{{url_for('static', filename='js/main.js')}}"></script>
