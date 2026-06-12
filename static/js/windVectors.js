@@ -203,25 +203,19 @@ const windLengthScale = d3.scaleLinear().domain([0, 20]).range([8, 48]).clamp(tr
 const WIND_ARROW_COLOR = "#1fa6b8";
 const WIND_ARROW_CASING = "rgba(255, 255, 255, 0.9)";
 
-// One closed path for the whole arrow (shaft + head) so there's no seam between
-// a stroked stem and a separate triangle. Length encodes wind speed; the shape
-// is filled teal and outlined with the white casing via paint-order:stroke.
-function arrowPath(len) {
-  const shaftHalf = 1.25; // half-width of the shaft
-  const headHalf = 5; // half-width of the head base
-  const headLen = Math.min(9, len * 0.6); // head length, capped for short arrows
-  const tip = -len;
-  const base = -(len - headLen); // where the head meets the shaft
-  return [
-    `M ${-shaftHalf} 0`,
-    `L ${-shaftHalf} ${base}`,
-    `L ${-headHalf} ${base}`,
-    `L 0 ${tip}`,
-    `L ${headHalf} ${base}`,
-    `L ${shaftHalf} ${base}`,
-    `L ${shaftHalf} 0`,
-    "Z",
-  ].join(" ");
+// Custom wavy-arrow glyph (viewBox 0 0 10 20, drawn pointing DOWN with the tip
+// at the bottom). One closed path with fill-rule:evenodd. We orient/size it per
+// arrow via a transform: translate to center on x=5, then scale(s, -s) to flip
+// it so it points UP (north) at rotation 0 and size it to the wind speed. The
+// casing uses a non-scaling stroke so its thickness stays constant at any scale.
+const WIND_ARROW_GLYPH_D =
+  "M4.24.35c.36-.42.99-.47,1.41-.11,1.59,1.36,2.37,2.69,2.42,4.08.04,1.34-.61,2.48-1.22,3.41-.15.23-.3.45-.45.67-1.14,1.69-2.01,2.97-1.23,4.86.38.92.82,2.05.83,3.28l2.28-2.35.72.7.72.7-4,4.12c-.19.19-.45.3-.72.3s-.53-.11-.72-.3L.28,15.57l.72-.7.72-.7,2.28,2.35c0-.78-.3-1.58-.68-2.52-1.2-2.95.34-5.18,1.46-6.79.14-.21.28-.4.4-.59.6-.91.92-1.59.9-2.24-.02-.6-.35-1.45-1.72-2.63-.42-.36-.47-.99-.11-1.41ZM1,14.87l.72-.7c-.38-.4-1.02-.41-1.41-.02-.4.38-.41,1.02-.02,1.41l.72-.7ZM9,14.87l.72.7c.38-.4.37-1.03-.02-1.41-.4-.38-1.03-.37-1.41.02l.72.7Z";
+
+// Wind speed → per-arrow glyph transform. The glyph is 20 units tall, so a
+// scale of px/20 makes it `px` long; the negative y flips it to point up.
+function glyphScaleTransform(d) {
+  const s = windLengthScale(d.wind_speed) / 20;
+  return `scale(${s}, ${-s}) translate(-5, 0)`;
 }
 
 function attachWindTooltip(selection, windTooltipId) {
@@ -302,16 +296,22 @@ function drawWindTrails(
           .append("g")
           .attr("class", "wind-arrow")
           .attr("transform", arrowTransform);
-        // Single filled arrow (shaft + head) with a white casing outline.
+        // Single wavy-arrow glyph: teal fill with a constant-width white casing.
         grp
           .append("path")
           .attr("class", "wind-arrow-shape")
+          .attr("d", WIND_ARROW_GLYPH_D)
+          .attr("fill-rule", "evenodd")
           .attr("fill", WIND_ARROW_COLOR)
           .attr("stroke", WIND_ARROW_CASING)
           .attr("stroke-width", 2)
           .attr("stroke-linejoin", "round")
+          .attr("vector-effect", "non-scaling-stroke")
           .style("paint-order", "stroke")
-          .attr("d", (d) => arrowPath(windLengthScale(d.wind_speed)));
+          // Stagger the breathing pulse so arrows shimmer instead of blinking in
+          // unison (the pulse itself is a CSS opacity animation, see main.css).
+          .style("animation-delay", (d, i) => `${(i % 8) * 0.18}s`)
+          .attr("transform", glyphScaleTransform);
         attachWindTooltip(grp, windTooltipId);
         return grp;
       },
@@ -325,9 +325,7 @@ function drawWindTrails(
       : sel.transition().duration(animationDuration).ease(d3.easeCubicInOut);
 
   animate(groups).attr("transform", arrowTransform);
-  animate(groups.select("path")).attr("d", (d) =>
-    arrowPath(windLengthScale(d.wind_speed))
-  );
+  animate(groups.select("path")).attr("transform", glyphScaleTransform);
 }
 
 export {

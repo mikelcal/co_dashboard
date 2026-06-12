@@ -367,3 +367,22 @@ body {
       transform: translateY(0);
     }
   }
+
+  /* Subtle "breathing" pulse on the wind arrows. Uses opacity (GPU-composited,
+     no JS timers) so 50 arrows stay cheap; the per-arrow animation-delay set in
+     windVectors.js staggers them into a shimmer. Disabled under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .wind-arrow-shape {
+      animation: windArrowPulse 2.6s ease-in-out infinite;
+    }
+  }
+
+  @keyframes windArrowPulse {
+    0%,
+    100% {
+      opacity: 0.72;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
