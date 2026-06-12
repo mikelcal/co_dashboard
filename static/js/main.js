@@ -20,6 +20,7 @@ import { showLoader, hideLoader } from "./loaderUtils.js";
 const MAP_FRAME_MS = 4000; // dwell per year/season (was 2000 — too fast to follow)
 const MAP_FILL_MS = 1200; // choropleth recolor transition (was 750)
 const WIND_OVERLAY_DEBOUNCE_MS = 400; // was 1500, which tore the trail layer down mid-transition every frame
+const ROSE_FRAME_MS = MAP_FRAME_MS; // wind-rose autoplay matches the map cadence (was 2000)
 
 const toggleWindOverlayDebounced = debounce(
   toggleWindOverlay,
@@ -2630,7 +2631,7 @@ function startStackedWindRoseAnimation(data) {
   // IntersectionObserver below starts playback once the rose scrolls into view.
   observeAutoplay("windRoseNorth", () => {
     if (!windRoseIsPlaying && !prefersReducedMotion) {
-      windRoseTimer = setInterval(playNextYear, 2000);
+      windRoseTimer = setInterval(playNextYear, ROSE_FRAME_MS);
       windRoseIsPlaying = true;
       setButtonState(true);
     }
@@ -2672,7 +2673,7 @@ function initWindControls(windYears) {
 
   playBtn.addEventListener("click", () => {
     if (!windRoseIsPlaying) {
-      windRoseTimer = setInterval(playNextYear, 2000);
+      windRoseTimer = setInterval(playNextYear, ROSE_FRAME_MS);
       windRoseIsPlaying = true;
       setButtonState(true);
     }
