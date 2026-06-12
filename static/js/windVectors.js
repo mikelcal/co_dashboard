@@ -203,10 +203,25 @@ const windLengthScale = d3.scaleLinear().domain([0, 20]).range([8, 48]).clamp(tr
 const WIND_ARROW_COLOR = "#1fa6b8";
 const WIND_ARROW_CASING = "rgba(255, 255, 255, 0.9)";
 
-function arrowHeadPath(len) {
-  const w = 5; // half-width of the head
+// One closed path for the whole arrow (shaft + head) so there's no seam between
+// a stroked stem and a separate triangle. Length encodes wind speed; the shape
+// is filled teal and outlined with the white casing via paint-order:stroke.
+function arrowPath(len) {
+  const shaftHalf = 1.25; // half-width of the shaft
+  const headHalf = 5; // half-width of the head base
+  const headLen = Math.min(9, len * 0.6); // head length, capped for short arrows
   const tip = -len;
-  return `M ${-w} ${tip + w * 1.6} L 0 ${tip} L ${w} ${tip + w * 1.6} Z`;
+  const base = -(len - headLen); // where the head meets the shaft
+  return [
+    `M ${-shaftHalf} 0`,
+    `L ${-shaftHalf} ${base}`,
+    `L ${-headHalf} ${base}`,
+    `L 0 ${tip}`,
+    `L ${headHalf} ${base}`,
+    `L ${shaftHalf} ${base}`,
+    `L ${shaftHalf} 0`,
+    "Z",
+  ].join(" ");
 }
 
 function attachWindTooltip(selection, windTooltipId) {
@@ -287,37 +302,16 @@ function drawWindTrails(
           .append("g")
           .attr("class", "wind-arrow")
           .attr("transform", arrowTransform);
-        // White casing shaft, drawn first so it sits underneath as a halo.
-        grp
-          .append("line")
-          .attr("class", "wind-casing")
-          .attr("x1", 0)
-          .attr("y1", 0)
-          .attr("x2", 0)
-          .attr("y2", (d) => -windLengthScale(d.wind_speed))
-          .attr("stroke", WIND_ARROW_CASING)
-          .attr("stroke-width", 5)
-          .attr("stroke-linecap", "round");
-        // Teal shaft on top.
-        grp
-          .append("line")
-          .attr("class", "wind-shaft")
-          .attr("x1", 0)
-          .attr("y1", 0)
-          .attr("x2", 0)
-          .attr("y2", (d) => -windLengthScale(d.wind_speed))
-          .attr("stroke", WIND_ARROW_COLOR)
-          .attr("stroke-width", 2.5)
-          .attr("stroke-linecap", "round");
-        // Arrowhead: teal fill with a white outline via paint-order:stroke.
+        // Single filled arrow (shaft + head) with a white casing outline.
         grp
           .append("path")
+          .attr("class", "wind-arrow-shape")
           .attr("fill", WIND_ARROW_COLOR)
           .attr("stroke", WIND_ARROW_CASING)
           .attr("stroke-width", 2)
           .attr("stroke-linejoin", "round")
           .style("paint-order", "stroke")
-          .attr("d", (d) => arrowHeadPath(windLengthScale(d.wind_speed)));
+          .attr("d", (d) => arrowPath(windLengthScale(d.wind_speed)));
         attachWindTooltip(grp, windTooltipId);
         return grp;
       },
@@ -331,12 +325,8 @@ function drawWindTrails(
       : sel.transition().duration(animationDuration).ease(d3.easeCubicInOut);
 
   animate(groups).attr("transform", arrowTransform);
-  // Both the casing and the shaft line share the same length.
-  animate(groups.selectAll("line")).attr("y2", (d) =>
-    -windLengthScale(d.wind_speed)
-  );
   animate(groups.select("path")).attr("d", (d) =>
-    arrowHeadPath(windLengthScale(d.wind_speed))
+    arrowPath(windLengthScale(d.wind_speed))
   );
 }
 
