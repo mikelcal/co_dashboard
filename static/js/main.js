@@ -9,7 +9,22 @@ import {
   WIND_VECTOR_URLS,
 } from "./windVectors.js";
 import { showLoader, hideLoader } from "./loaderUtils.js";
-const toggleWindOverlayDebounced = debounce(toggleWindOverlay, 1500);
+
+// === Animated CO map timing (ms) ===
+// Each frame must give users time to read the choropleth recolor *and* let the
+// wind arrows finish rotating (windVectors animationDuration ≈ 1500ms) before
+// the next frame. Budget per frame with wind on:
+//   t=0 tick → map recolors over MAP_FILL_MS; wind redraw fires after
+//   WIND_OVERLAY_DEBOUNCE_MS then animates ~1500ms → settles ~1900ms; the
+//   remainder of MAP_FRAME_MS is rest time to absorb the change.
+const MAP_FRAME_MS = 4000; // dwell per year/season (was 2000 — too fast to follow)
+const MAP_FILL_MS = 1200; // choropleth recolor transition (was 750)
+const WIND_OVERLAY_DEBOUNCE_MS = 400; // was 1500, which tore the trail layer down mid-transition every frame
+
+const toggleWindOverlayDebounced = debounce(
+  toggleWindOverlay,
+  WIND_OVERLAY_DEBOUNCE_MS
+);
 
 // === Constants & Global State ===
 
@@ -186,7 +201,7 @@ function startYearAnimation() {
     updateVisuals(currentMode, currentIndex);
     document.getElementById("scrubberSlider-map").value = currentIndex;
     updateProgressLabels();
-  }, 2000);
+  }, MAP_FRAME_MS);
 }
 
 function stopYearAnimation() {
@@ -313,7 +328,7 @@ function updateMap(yearIndex) {
 
   statePaths
     .transition()
-    .duration(750)
+    .duration(MAP_FILL_MS)
     .attr("fill", (d) => {
       const val = getValue(d.id, year);
       return val != null ? colorScale(val) : "#ccc";
@@ -407,7 +422,7 @@ function updateMapSeasons(index = 0) {
   // Map color fill update
   statePaths
     .transition()
-    .duration(750)
+    .duration(MAP_FILL_MS)
     .attr("fill", (d) => {
       const abbr = fipsToAbbr.get(d.id);
       const value = animatedData?.[abbr]?.season?.[key];
