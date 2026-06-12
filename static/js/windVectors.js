@@ -193,7 +193,7 @@ const windReducedMotion =
 // Wind speed (now mph after the unit fix) → arrow length in px. A scale keeps
 // this robust to the data's range instead of a raw multiplier tuned to the old
 // tenths-of-m/s magnitudes.
-const windLengthScale = d3.scaleLinear().domain([0, 20]).range([8, 48]).clamp(true);
+const windLengthScale = d3.scaleLinear().domain([0, 20]).range([7, 40]).clamp(true);
 
 // Muted teal with a white casing/halo. Pure neon cyan (#00f0ff) on the red CO
 // choropleth was near-complementary and vibrated harshly; a desaturated teal
