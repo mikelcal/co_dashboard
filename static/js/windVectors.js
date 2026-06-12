@@ -195,6 +195,14 @@ const windReducedMotion =
 // tenths-of-m/s magnitudes.
 const windLengthScale = d3.scaleLinear().domain([0, 20]).range([8, 48]).clamp(true);
 
+// Muted teal with a white casing/halo. Pure neon cyan (#00f0ff) on the red CO
+// choropleth was near-complementary and vibrated harshly; a desaturated teal
+// plus a neutral white outline removes the buzz and keeps the arrow legible
+// across the whole ramp (light salmon → dark red). Teal stays distinguishable
+// for red/green color-blind viewers.
+const WIND_ARROW_COLOR = "#1fa6b8";
+const WIND_ARROW_CASING = "rgba(255, 255, 255, 0.9)";
+
 function arrowHeadPath(len) {
   const w = 5; // half-width of the head
   const tip = -len;
@@ -279,18 +287,36 @@ function drawWindTrails(
           .append("g")
           .attr("class", "wind-arrow")
           .attr("transform", arrowTransform);
+        // White casing shaft, drawn first so it sits underneath as a halo.
         grp
           .append("line")
+          .attr("class", "wind-casing")
           .attr("x1", 0)
           .attr("y1", 0)
           .attr("x2", 0)
           .attr("y2", (d) => -windLengthScale(d.wind_speed))
-          .attr("stroke", "#00f0ff")
+          .attr("stroke", WIND_ARROW_CASING)
+          .attr("stroke-width", 5)
+          .attr("stroke-linecap", "round");
+        // Teal shaft on top.
+        grp
+          .append("line")
+          .attr("class", "wind-shaft")
+          .attr("x1", 0)
+          .attr("y1", 0)
+          .attr("x2", 0)
+          .attr("y2", (d) => -windLengthScale(d.wind_speed))
+          .attr("stroke", WIND_ARROW_COLOR)
           .attr("stroke-width", 2.5)
           .attr("stroke-linecap", "round");
+        // Arrowhead: teal fill with a white outline via paint-order:stroke.
         grp
           .append("path")
-          .attr("fill", "#00f0ff")
+          .attr("fill", WIND_ARROW_COLOR)
+          .attr("stroke", WIND_ARROW_CASING)
+          .attr("stroke-width", 2)
+          .attr("stroke-linejoin", "round")
+          .style("paint-order", "stroke")
           .attr("d", (d) => arrowHeadPath(windLengthScale(d.wind_speed)));
         attachWindTooltip(grp, windTooltipId);
         return grp;
@@ -305,7 +331,10 @@ function drawWindTrails(
       : sel.transition().duration(animationDuration).ease(d3.easeCubicInOut);
 
   animate(groups).attr("transform", arrowTransform);
-  animate(groups.select("line")).attr("y2", (d) => -windLengthScale(d.wind_speed));
+  // Both the casing and the shaft line share the same length.
+  animate(groups.selectAll("line")).attr("y2", (d) =>
+    -windLengthScale(d.wind_speed)
+  );
   animate(groups.select("path")).attr("d", (d) =>
     arrowHeadPath(windLengthScale(d.wind_speed))
   );
