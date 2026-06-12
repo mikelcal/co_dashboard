@@ -172,7 +172,24 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 - [x] **VERIFY** wind-vector direction (per goal) — *Confirmed correct 2026-06-12: `wind_direction` is the meteorological "from" bearing; `rotate(wind_direction + 180)` with the up-pointing base arrow renders flow-to semantics. Live DOM check: CA/NY (from W) → arrows point E; TX (from SE) → NW; 33/50 states flow east, matching US prevailing westerlies.*
 - [x] Mobile: drop `background-attachment: fixed` on touch/small screens (janks on iOS) — *Done 2026-06-12 via `@media (hover: none), (max-width: 768px)`.* Fixed-width card/margin audit still open.
 - [x] Accessibility (partial) — *Done 2026-06-12: `aria-label`s on both scrubber sliders and all four icon-only play/pause buttons (`aria-hidden` on the glyphs).* Broader pass (chart text alternatives, non-color encodings, keyboard/touch tooltips) still open.
-- [ ] **Deferred (own session):** Split the 3,144-line `main.js` into per-chart ES modules; finish the accessibility pass (chart `<title>`/`aria` descriptions, non-color encodings, keyboard tooltip access); finish the mobile audit of fixed-width cards and `margin-top` offsets.
+
+**P3b — animation & wind-arrow UX polish** *(2026-06-12, follow-on; all shipped to `origin/main`, commits `95ec075`→`9e5d9eb`)*
+
+- [x] **Slow the animated CO map cadence** — frame dwell 2000 → **4000 ms**, choropleth recolor 750 → **1200 ms**, wind-overlay debounce 1500 → **400 ms** (named constants `MAP_FRAME_MS`/`MAP_FILL_MS`/`WIND_OVERLAY_DEBOUNCE_MS`). Wind transitions now complete (~1900 ms) well inside the frame instead of being torn down mid-transition. Verified live: measured interval ~4000 ms, arrows persist across frames.
+- [x] **Match the wind-rose autoplay cadence** to the map (`ROSE_FRAME_MS = MAP_FRAME_MS`, was 2000 ms). Verified ~4000 ms.
+- [x] **Wind-arrow recolor** — neon cyan `#00f0ff` (vibrated against the red ramp) → muted teal `#1fa6b8` + white casing/halo; colorblind-safe and legible across the whole choropleth.
+- [x] **Single-path arrow** — collapsed the 3-element arrow (casing line + shaft line + triangle) into one `<path>`, fixing the round-cap-overshoot seam at the tip.
+- [x] **Custom wavy-arrow glyph** (`arrow_wavy.svg`) — one `<path>` oriented/sized via `scale(s,-s) translate(-5,0)` (flips it to point up = north at rotation 0); `vector-effect:non-scaling-stroke` keeps the casing a constant width at any scale; size tuned (length scale 8–48 → **7–40 px**).
+- [x] **Subtle "shimmer" pulse** — CSS opacity animation `windArrowPulse` (0.65↔1.0, 2.6 s), staggered per arrow via `animation-delay`. GPU-composited, no JS timers. **Runs unconditionally** (gentle opacity fade, not large motion); the arrows' rotation/length transitions still respect `prefers-reduced-motion`. *(Note: if we later want to re-gate this behind reduced-motion, it's a one-line change — see `.wind-arrow-shape` in `main.css`.)*
+
+**P3 — still pending for next session**
+
+- [ ] **Re-gate decision (quick):** confirm whether the shimmer should stay unconditional or respect `prefers-reduced-motion` (left unconditional per user request 2026-06-12).
+- [ ] **Optional:** swap the wind-speed→glyph mapping from *length* to *uniform size* if a fixed-glyph look is preferred (raised when the wavy glyph went in).
+- [ ] **Deferred (own session):** Split the 3,144-line `main.js` into per-chart ES modules.
+- [ ] **Accessibility pass (finish):** chart `<title>`/`aria` descriptions, non-color encodings, keyboard/touch tooltip access. *(Sliders + play/pause buttons already done.)*
+- [ ] **Mobile audit (finish):** fixed-width cards and `margin-top:` style offsets (the `background-attachment:fixed` jank is already fixed).
+- [ ] **Viz-switcher toggle** — explicitly deferred at the 2026-06-12 decision gate; revisit if the dashboard grows more visualizations.
 
 ---
 
