@@ -179,6 +179,28 @@
         </div>
       </div>
     </div>
+    <div class="row my-5 align-items-center">
+      <div class="col-8">
+        <div id="scatterWrapper" class="position-relative">
+          <svg id="windCoScatter" width="100%" height="100%"></svg>
+          <div id="scatterLoader" class="chart-loader-overlay">
+            <div class="spinner-grow text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card shadow-sm p-4">
+          <h5>Wind vs. CO, state by state</h5>
+          <p class="mb-0">
+            Each point is one state's 2014–2024 average. Plotting average wind speed directly against average CO
+            concentration — rather than along an alphabetical axis — lets the fitted regression line and its
+            correlation tell the real story: states with stronger prevailing winds tend toward lower CO.
+          </p>
+        </div>
+      </div>
+    </div>
     <div id="wind" class="row text-center">
       <div class="col">
         <h3>What states have controlled the increase of pollution?</h3>

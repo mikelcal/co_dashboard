@@ -16,6 +16,7 @@ const loaders = {
   map: "mapLoader",
   treemap: "treemapLoader",
   bar: "groupedBarLoader",
+  scatter: "scatterLoader",
 };
 // colors for treemap regions
 const regionColors = {
@@ -640,6 +641,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Bar chart loading
   showLoader(loaders.bar);
 
+  showLoader(loaders.scatter);
+
   fetch("/state_averages")
     .then((res) => res.json())
     .then((data) => {
@@ -651,12 +654,20 @@ document.addEventListener("DOMContentLoaded", () => {
         width: CHART_WIDTH,
         height: CHART_HEIGHT,
       });
+      drawWindCoScatter({
+        data: data.averages,
+        trend: data.trend,
+        containerId: "windCoScatter",
+        width: CHART_WIDTH,
+        height: CHART_HEIGHT,
+      });
     })
     .catch((error) => {
       console.error("Error loading states bar chart averages:", error);
     })
     .finally(() => {
       hideLoader(loaders.bar);
+      hideLoader(loaders.scatter);
     });
 
   fetch("/state_comparison", {
@@ -1769,6 +1780,151 @@ function updateTreemap() {
       // Hide loader after drawing is done
       hideLoader(loaders.treemap);
     });
+}
+
+function drawWindCoScatter({
+  data,
+  trend,
+  containerId,
+  width = CHART_WIDTH,
+  height = CHART_HEIGHT,
+}) {
+  const svg = d3.select(`#${containerId}`);
+  svg.selectAll("*").remove();
+  svg
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  const margin = { top: 80, right: 60, bottom: 70, left: 80 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3
+    .scaleLinear()
+    .domain(d3.extent(data, (d) => d.avg_wind_speed))
+    .nice()
+    .range([0, chartWidth]);
+
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(data, (d) => d.avg_measurement)])
+    .nice()
+    .range([chartHeight, 0]);
+
+  // Title
+  svg
+    .append("text")
+    .attr("x", width / 2)
+    .attr("y", margin.top / 2)
+    .attr("text-anchor", "middle")
+    .style("font-size", "18px")
+    .style("font-weight", "bold")
+    .style("font-family", "sans-serif")
+    .text("Average Wind Speed vs. CO by State (2014–2024)");
+
+  // Axes
+  g.append("g")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x));
+
+  g.append("g").call(d3.axisLeft(y));
+
+  g.append("text")
+    .attr("x", chartWidth / 2)
+    .attr("y", chartHeight + 45)
+    .attr("text-anchor", "middle")
+    .style("font-size", "14px")
+    .style("font-weight", "bold")
+    .attr("fill", "darkblue")
+    .text("Average Wind Speed (mph)");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -chartHeight / 2)
+    .attr("y", -margin.left + 20)
+    .attr("text-anchor", "middle")
+    .style("font-size", "14px")
+    .style("font-weight", "bold")
+    .attr("fill", "darkred")
+    .text("Average CO Concentration (PPM)");
+
+  // Fitted regression line, drawn across the wind-speed extent
+  if (
+    trend &&
+    typeof trend.slope === "number" &&
+    typeof trend.intercept === "number"
+  ) {
+    const [xMin, xMax] = x.domain();
+    g.append("line")
+      .attr("x1", x(xMin))
+      .attr("y1", y(trend.slope * xMin + trend.intercept))
+      .attr("x2", x(xMax))
+      .attr("y2", y(trend.slope * xMax + trend.intercept))
+      .attr("stroke", "black")
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", "6 4");
+  }
+
+  // r / p annotation
+  if (trend && typeof trend.r_value === "number") {
+    const pValue = trend.p_value;
+    const significant = typeof pValue === "number" && pValue < 0.05;
+    const pLabel =
+      typeof pValue === "number"
+        ? pValue < 0.001
+          ? "p < 0.001"
+          : `p = ${pValue.toFixed(3)}`
+        : "p = n/a";
+
+    const annotation = g
+      .append("text")
+      .attr("x", chartWidth - 10)
+      .attr("y", 20)
+      .attr("text-anchor", "end")
+      .style("font-size", "14px")
+      .style("font-family", "sans-serif");
+
+    annotation
+      .append("tspan")
+      .style("font-weight", "bold")
+      .text(`r = ${trend.r_value.toFixed(2)}`);
+    annotation
+      .append("tspan")
+      .attr("dx", 10)
+      .text(`${pLabel} (${significant ? "significant" : "not significant"})`);
+  }
+
+  const tooltip = d3.select("#tooltip");
+
+  g.selectAll("circle.state-point")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("class", "state-point")
+    .attr("cx", (d) => x(d.avg_wind_speed))
+    .attr("cy", (d) => y(d.avg_measurement))
+    .attr("r", 6)
+    .attr("fill", "steelblue")
+    .attr("fill-opacity", 0.7)
+    .attr("stroke", "darkblue")
+    .attr("stroke-width", 1)
+    .on("mouseover", (event, d) => {
+      tooltip.style("visibility", "visible").html(`
+            <strong>${d.state}</strong><br>
+            Wind: ${d.avg_wind_speed.toFixed(1)} mph<br>
+            CO: ${d.avg_measurement.toFixed(2)} PPM
+          `);
+    })
+    .on("mousemove", (event) => {
+      tooltip
+        .style("top", event.pageY - 50 + "px")
+        .style("left", event.pageX + 20 + "px");
+    })
+    .on("mouseout", () => tooltip.style("visibility", "hidden"));
 }
 
 function drawGroupedBarChart({

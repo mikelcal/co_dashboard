@@ -158,7 +158,10 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 
 **P3 — polish & craft (portfolio impact)**
 
-- [ ] Re-enable correlation annotations on combo + bar charts (DV-10) and consider the wind-vs-CO scatter (DV-09)
+> **DECISION (2026-06-12):** Add the **wind-vs-CO scatter** as a new visualization (no viz-switcher toggle for now). Done — see below.
+
+- [x] **NEW VIZ** wind-vs-CO scatter (DV-09): per-state points (x = avg wind mph, y = avg CO PPM), backend `trend` regression line, and an honest `r`/`p` significance annotation. Added `#windCoScatter` card under the "Relationship…" section, `drawWindCoScatter()` in `main.js` wired into the existing `/state_averages` fetch (no backend change). *(Done 2026-06-12: verified live at :5050 — 50 points, fitted line, "r = -0.32, p = 0.021 (significant)", zero console errors.)*
+- [ ] Re-enable correlation annotations on combo + bar charts (DV-10)
 - [ ] Update `#stWindRoseTitle` on state change (`main.js:655-709` only updates `#stateTitle`)
 - [ ] Guard `updateTooltip` against missing state meta (DV-12); add DC to `state_name_to_code` (DV-11)
 - [ ] Wind-rose half-bin label alignment (DV-04) and label centering (`+bandwidth/2`) (DV-05)
