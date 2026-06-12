@@ -14,6 +14,14 @@ body {
   padding-top: 80px; /* adjust if navbar height changes */
 }
 
+/* background-attachment: fixed is janky/unsupported on iOS Safari and other
+   touch devices — fall back to normal scrolling there. */
+@media (hover: none), (max-width: 768px) {
+  .hero-container {
+    background-attachment: scroll;
+  }
+}
+
 .hero-container::before {
   content: "";
   position: absolute;
@@ -124,10 +132,10 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(255, 255, 255, 0.6);
+    /* Hidden by default; showLoader() sets display:flex inline to reveal it.
+       The centering props below take effect once that inline flex is applied. */
     display: none;
     z-index: 10;
-  
-    display: flex;
     justify-content: center;
     align-items: center;
   }
@@ -167,10 +175,8 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(255, 255, 255, 0.6);
-    display: none; /* toggled via JS */
+    display: none; /* toggled via JS to flex */
     z-index: 10;
-  
-    display: flex;
     justify-content: center;
     align-items: center;
   }
@@ -307,13 +313,12 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(255, 255, 255, 0.6);
-    display: none;
+    display: none; /* toggled via JS to flex */
     z-index: 10;
-    display: flex;
     justify-content: center;
     align-items: center;
   }
-  
+
   .chart-loader-overlay .spinner-grow {
     width: 3rem;
     height: 3rem;
@@ -331,14 +336,12 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(255, 255, 255, 0.6);
-    display: none;
+    display: none; /* toggled via JS to flex */
     z-index: 10;
-  
-    display: flex;
     justify-content: center;
     align-items: center;
   }
-  
+
   #groupedBarLoader .spinner-grow {
     width: 3rem;
     height: 3rem;

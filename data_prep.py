@@ -76,7 +76,8 @@ state_name_to_code = {
     'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA',
     'Rhode Island': 'RI', 'South Carolina': 'SC', 'South Dakota': 'SD', 'Tennessee': 'TN',
     'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA',
-    'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+    'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+    'District of Columbia': 'DC'
 }
 
 state_code_to_name = {v: k for k, v in state_name_to_code.items()}
@@ -270,7 +271,11 @@ def get_wind_rose_data(df, state=None):
     filtered_df = filtered_df.dropna(subset=[wind_dir_col, 'avg_wind_speed'])
 
     def bin_wind_direction(degrees, n_bins=16):
-        return int(np.floor(degrees % 360 / (360 / n_bins)))
+        # Center bins on cardinal directions: bin 0 spans [-11.25, 11.25) = true
+        # North, matching degreesToCardinal()/the rose labels. Without the half-bin
+        # offset, bin 0 was [0, 22.5) and the "N" sector actually spanned N->NNE.
+        half = (360 / n_bins) / 2
+        return int(np.floor(((degrees + half) % 360) / (360 / n_bins)))
 
     def categorize_wind_speed(speed):
         if speed < 10: return 'Light (<10)'
@@ -308,7 +313,11 @@ def get_animated_wind_rose_data(df, data_type="wind"):
     filtered_df = filtered_df.dropna(subset=[wind_dir_col, 'avg_wind_speed', 'avg_measurement'])
 
     def bin_wind_direction(degrees, n_bins=16):
-        return int(np.floor(degrees % 360 / (360 / n_bins)))
+        # Center bins on cardinal directions: bin 0 spans [-11.25, 11.25) = true
+        # North, matching degreesToCardinal()/the rose labels. Without the half-bin
+        # offset, bin 0 was [0, 22.5) and the "N" sector actually spanned N->NNE.
+        half = (360 / n_bins) / 2
+        return int(np.floor(((degrees + half) % 360) / (360 / n_bins)))
 
     def categorize_wind_speed(speed):
         if speed < 10: return 'Light (<10)'

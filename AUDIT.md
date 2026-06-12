@@ -161,17 +161,18 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 > **DECISION (2026-06-12):** Add the **wind-vs-CO scatter** as a new visualization (no viz-switcher toggle for now). Done — see below.
 
 - [x] **NEW VIZ** wind-vs-CO scatter (DV-09): per-state points (x = avg wind mph, y = avg CO PPM), backend `trend` regression line, and an honest `r`/`p` significance annotation. Added `#windCoScatter` card under the "Relationship…" section, `drawWindCoScatter()` in `main.js` wired into the existing `/state_averages` fetch (no backend change). *(Done 2026-06-12: verified live at :5050 — 50 points, fitted line, "r = -0.32, p = 0.021 (significant)", zero console errors.)*
-- [ ] Re-enable correlation annotations on combo + bar charts (DV-10)
-- [ ] Update `#stWindRoseTitle` on state change (`main.js:655-709` only updates `#stateTitle`)
-- [ ] Guard `updateTooltip` against missing state meta (DV-12); add DC to `state_name_to_code` (DV-11)
-- [ ] Wind-rose half-bin label alignment (DV-04) and label centering (`+bandwidth/2`) (DV-05)
-- [ ] Honest Top-3/Bottom-3 on brushed subsets; replace in-place sorts with `d3.sort` copies (DV-08)
-- [ ] Fix loader CSS (`main.css:120-133, 165-176, 303-345`): `display:none` is overridden by a later `display:flex` in the same rule — loaders are visible until JS hides them
-- [ ] Remove `max="X"` placeholder attrs on range inputs (`w209.html:265, 379`); remove dead footer social links; update © year
-- [ ] Deduplicate: `degreesToCardinal` ×2, `WIND_VECTOR_URLS` ×2, `getValue` defined twice (`main.js:87, 445`); delete unused `listenersAttached`, `processChartData` results, `windVectors.js:1-2` globals
-- [ ] Split the 3,144-line `main.js` into per-chart ES modules
-- [ ] Accessibility pass: `aria-label`s on sliders/buttons, text alternatives for charts, non-color encodings, keyboard/touch tooltip access
-- [ ] Mobile: drop `background-attachment: fixed` (janks on iOS); audit fixed-width cards/margins (`margin-top: 280px` style offsets)
+- [x] Re-enable correlation annotations on combo + bar charts (DV-10) — *Done 2026-06-12: both un-commented with numeric guards; relabeled to distinguish the two distinct statistics — combo = "U.S. Wind–CO correlation over time: r = 0.158" (temporal), bar/scatter = "Cross-state Wind–CO correlation: r = -0.325" (spatial). Verified live.*
+- [x] ~~Update `#stWindRoseTitle` on state change~~ — already handled (`main.js` updates both `#stateTitle` and `#stWindRoseTitle`; verified "Wind Rose Chart – Georgia").
+- [x] Guard `updateTooltip` against missing state meta (DV-12) — already guarded (`if (!meta) return;`); **add DC to `state_name_to_code` (DV-11)** — *Done 2026-06-12 (defensive; DC isn't in the 50-state dataset, but the mapping now matches the FIPS map).*
+- [x] Wind-rose half-bin label alignment (DV-04) and label centering (DV-05) — *Done 2026-06-12: binning offset by +11.25° so bin 0 = true N (`data_prep.py`, both rose functions); arcs + labels centered on each bearing in `drawWindRose`. Verified live: N/E/S/W land at top/right/bottom/left on all 3 roses.*
+- [x] Honest Top-3/Bottom-3 on brushed subsets; replace in-place sorts with copies (DV-08) — *Done 2026-06-12: ranked against the full national dataset (`fullDataSet`) so badges stay truthful when brushed; `[...arr].sort()` copies, no more mutation of bound data.*
+- [x] Fix loader CSS — *Done 2026-06-12: removed the overriding `display:flex` from all four loader rules (`#treemapLoader`, `#mapLoader`, `.chart-loader-overlay`, `#groupedBarLoader`); base state is now `display:none`, JS supplies `flex` inline when showing.*
+- [x] Remove `max="X"` placeholder attrs on range inputs; remove dead footer social links; update © year — *Done 2026-06-12: both `max="X"` removed (JS sets `.max`); footer socials + their orphaned `<symbol>` defs deleted; © 2025 → 2026.*
+- [x] Deduplicate: `degreesToCardinal` ×2, `WIND_VECTOR_URLS` ×2, `getValue` ×2; delete unused `listenersAttached`, `windVectors.js` globals — *Done 2026-06-12: `degreesToCardinal`/`WIND_VECTOR_URLS` now exported from `windVectors.js` and imported into `main.js`; redundant second `getValue` removed; `listenersAttached`, `hoveredWindElement`, `windArrowSelection` deleted. Verified live: no console errors.*
+- [x] **VERIFY** wind-vector direction (per goal) — *Confirmed correct 2026-06-12: `wind_direction` is the meteorological "from" bearing; `rotate(wind_direction + 180)` with the up-pointing base arrow renders flow-to semantics. Live DOM check: CA/NY (from W) → arrows point E; TX (from SE) → NW; 33/50 states flow east, matching US prevailing westerlies.*
+- [x] Mobile: drop `background-attachment: fixed` on touch/small screens (janks on iOS) — *Done 2026-06-12 via `@media (hover: none), (max-width: 768px)`.* Fixed-width card/margin audit still open.
+- [x] Accessibility (partial) — *Done 2026-06-12: `aria-label`s on both scrubber sliders and all four icon-only play/pause buttons (`aria-hidden` on the glyphs).* Broader pass (chart text alternatives, non-color encodings, keyboard/touch tooltips) still open.
+- [ ] **Deferred (own session):** Split the 3,144-line `main.js` into per-chart ES modules; finish the accessibility pass (chart `<title>`/`aria` descriptions, non-color encodings, keyboard tooltip access); finish the mobile audit of fixed-width cards and `margin-top` offsets.
 
 ---
 

@@ -5,6 +5,8 @@ import {
   useWindData,
   getWindByAbbr,
   windDataCache,
+  degreesToCardinal,
+  WIND_VECTOR_URLS,
 } from "./windVectors.js";
 import { showLoader, hideLoader } from "./loaderUtils.js";
 const toggleWindOverlayDebounced = debounce(toggleWindOverlay, 1500);
@@ -77,18 +79,12 @@ const prefersReducedMotion =
 // Global Wind Rose Variables
 let windRoseTimer = null;
 let windRoseIsPlaying = false;
-let listenersAttached = false;
 let windRoseData = {};
 let windYears = [];
 let windYearIndex = 0;
 
-// Global Choropleth map variables
-const WIND_VECTOR_URLS = {
-  static: "/wind_vectors/static",
-  animated: "/wind_vectors/animated",
-  seasonal: "/wind_vectors/seasonal",
-  correlation: "/wind_vectors/static",
-};
+// WIND_VECTOR_URLS and degreesToCardinal are imported from windVectors.js
+// (single source of truth — they used to be duplicated here).
 
 let currentMapMode = "static";
 let windOverlayActive = false;
@@ -494,19 +490,6 @@ document
     }
   });
 
-getValue = (fips, key) => {
-  const abbr = fipsToAbbr.get(fips);
-  if (!animatedData || !abbr) return null;
-
-  if (currentMode === "year") {
-    return animatedData?.[abbr]?.year?.[key] ?? null;
-  } else if (currentMode === "season") {
-    return animatedData?.[abbr]?.season?.[key] ?? null;
-  }
-
-  return null;
-};
-
 // Function to calculate correlation coefficient
 function getCorrelation(x, y) {
   if (x.length !== y.length) {
@@ -827,28 +810,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // === Chart and utility functions ===
-function degreesToCardinal(deg) {
-  const directions = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ];
-  const index = Math.floor(((deg + 11.25) % 360) / 22.5);
-  return directions[index];
-}
+// degreesToCardinal is imported from windVectors.js (deduplicated).
 
 // === Tooltip HTML Generators ===
 function getCombinedTooltipHTML(stateMeta, coVal, wind, options = {}) {
@@ -1191,14 +1153,16 @@ function drawComboChart(data, trends, svgId, title, correlation) {
     .style("font-weight", "bold")
     .text(title);
 
-  //   // Correlation label
-  //   svg
-  //     .append("text")
-  //     .attr("x", margin.left + 5)
-  //     .attr("y", +svg.attr("height") - 15)
-  //     .style("font-size", "13px")
-  //     .style("opacity", 0.8)
-  //     .text(`Correlation coefficient: ${correlation.toFixed(3)}`);
+  // Correlation label — the dashboard's central statistical claim (wind ↔ CO)
+  if (typeof correlation === "number" && isFinite(correlation)) {
+    svg
+      .append("text")
+      .attr("x", margin.left + 5)
+      .attr("y", +svg.attr("height") - 15)
+      .style("font-size", "13px")
+      .style("opacity", 0.8)
+      .text(`U.S. Wind–CO correlation over time: r = ${correlation.toFixed(3)}`);
+  }
 
   // Legend
   const legendItems = [
@@ -1989,30 +1953,22 @@ function drawGroupedBarChart({
 
   const tooltip = d3.select("#tooltip");
 
-  const top3CO = new Set(
-    data
-      .sort((a, b) => b.avg_measurement - a.avg_measurement)
-      .slice(0, 3)
-      .map((d) => d.state)
-  );
-  const bottom3CO = new Set(
-    data
-      .sort((a, b) => a.avg_measurement - b.avg_measurement)
-      .slice(0, 3)
-      .map((d) => d.state)
-  );
-  const top3Wind = new Set(
-    data
-      .sort((a, b) => b.avg_wind_speed - a.avg_wind_speed)
-      .slice(0, 3)
-      .map((d) => d.state)
-  );
-  const bottom3Wind = new Set(
-    data
-      .sort((a, b) => a.avg_wind_speed - b.avg_wind_speed)
-      .slice(0, 3)
-      .map((d) => d.state)
-  );
+  // Top/Bottom-3 are ranked against the full national dataset so the badges
+  // stay truthful when the chart is brushed to a subset (DV-08). Sort on a copy
+  // so the bound `data` array is never mutated.
+  const rankingSource =
+    fullDataSet && fullDataSet.length ? fullDataSet : data;
+  const topN = (key, ascending) =>
+    new Set(
+      [...rankingSource]
+        .sort((a, b) => (ascending ? a[key] - b[key] : b[key] - a[key]))
+        .slice(0, 3)
+        .map((d) => d.state)
+    );
+  const top3CO = topN("avg_measurement", false);
+  const bottom3CO = topN("avg_measurement", true);
+  const top3Wind = topN("avg_wind_speed", false);
+  const bottom3Wind = topN("avg_wind_speed", true);
 
   const stateGroups = g
     .selectAll(".state-group")
@@ -2155,16 +2111,16 @@ function drawGroupedBarChart({
     .style("font-size", "18px")
     .text("Average Wind Speed & CO Levels by State (2014–2024)");
 
-  //   svg
-  //     .append("text")
-  //     .attr("x", margin.left)
-  //     .attr("y", 50)
-  //     .style("font-size", "16px")
-  //     .text(() =>
-  //       correlation
-  //         ? `Correlation (Wind → CO): ${correlation.toFixed(3)}`
-  //         : "(Filtered view — correlation not shown)"
-  //     );
+  svg
+    .append("text")
+    .attr("x", margin.left)
+    .attr("y", 50)
+    .style("font-size", "16px")
+    .text(
+      typeof correlation === "number" && isFinite(correlation)
+        ? `Cross-state Wind–CO correlation: r = ${correlation.toFixed(3)}`
+        : "(Filtered view — correlation not shown)"
+    );
 
   // Shifted legend lower to avoid title overlap
   const legendItems = [
@@ -2529,14 +2485,16 @@ function drawWindRose(containerId, data, { radiusMax = null, persist = false } =
     .value((d, key) => d[key] || 0)(rows);
 
   function arcPath(d) {
-    const a0 = angleScale(d.data.direction_bin);
-    const a1 = a0 + angleScale.bandwidth();
+    // Center each wedge on its compass bearing: bin b sits at angleScale(b)
+    // ± half a band, so bin 0 (North) is centered at 12 o'clock (DV-04).
+    const center = angleScale(d.data.direction_bin);
+    const half = angleScale.bandwidth() / 2;
     return d3
       .arc()
       .innerRadius(radiusScale(d[0]))
       .outerRadius(radiusScale(d[1]))
-      .startAngle(a0)
-      .endAngle(a1)();
+      .startAngle(center - half)
+      .endAngle(center + half)();
   }
 
   // Persistent root: build once, then update in place.
@@ -2596,15 +2554,16 @@ function drawWindRose(containerId, data, { radiusMax = null, persist = false } =
     .attr("stroke", "#ccc")
     .attr("r", radiusScale);
 
-  // Direction labels at each sector's center (+ half a band), not its start edge.
+  // Direction labels at each sector's center. Wedges are now centered on
+  // angleScale(bin) (see arcPath), so labels go there too — "N" lands at top.
   root
     .select(".rose-labels")
     .selectAll("text")
     .data(d3.range(16))
     .join("text")
     .attr("text-anchor", "middle")
-    .attr("x", (bin) => Math.sin(angleScale(bin) + angleScale.bandwidth() / 2) * (radius + 15))
-    .attr("y", (bin) => -Math.cos(angleScale(bin) + angleScale.bandwidth() / 2) * (radius + 15))
+    .attr("x", (bin) => Math.sin(angleScale(bin)) * (radius + 15))
+    .attr("y", (bin) => -Math.cos(angleScale(bin)) * (radius + 15))
     .text((bin) => WIND_ROSE_DIR_LABELS[bin])
     .style("font-size", "14px");
 }

@@ -1,5 +1,3 @@
-let hoveredWindElement = null;
-let windArrowSelection = null;
 const windDataCache = new Map(); // Cache to store wind data
 
 // Global Choropleth map variables
@@ -322,4 +320,6 @@ export {
   loadWindData,
   getWindByAbbr,
   windDataCache,
+  degreesToCardinal,
+  WIND_VECTOR_URLS,
 };
