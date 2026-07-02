@@ -215,6 +215,26 @@ def get_seasonal_avg_by_region(df):
 
     return seasonal_avg
 
+def get_monthly_climatology(df):
+    """Calendar-month climatology: mean CO and wind for each month-of-year,
+    averaged across the full 2014-2024 span. Powers the radial seasonality
+    chart (12 rows, cyclic Jan-Dec)."""
+    work = df[["date_local", "avg_measurement", "avg_wind_speed"]].copy()
+    work["month_num"] = work["date_local"].dt.month
+    monthly = work.groupby("month_num").agg({
+        "avg_measurement": "mean",
+        "avg_wind_speed": "mean",
+    }).reset_index().sort_values("month_num")
+
+    return [
+        {
+            "month": int(row.month_num),
+            "avg_co": round(float(row.avg_measurement), 3),
+            "avg_wind": round(float(row.avg_wind_speed), 2),
+        }
+        for row in monthly.itertuples(index=False)
+    ]
+
 def get_yearly_trends(df):
     yearly_trends = df.groupby(['year', 'region']).agg({
         'avg_measurement': 'mean',

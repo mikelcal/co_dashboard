@@ -371,11 +371,13 @@ body {
   /* Subtle "breathing" shimmer on the wind arrows. Opacity only (GPU-composited,
      no JS timers) so 50 arrows stay cheap; the per-arrow animation-delay set in
      windVectors.js staggers them into a shimmer rather than a unison blink.
-     Runs unconditionally — it's a gentle opacity fade, not the large motion that
-     prefers-reduced-motion targets (the arrows' rotation/length transitions
-     still respect that preference). */
-  .wind-arrow-shape {
-    animation: windArrowPulse 2.6s ease-in-out infinite;
+     Gated behind prefers-reduced-motion: 50 infinite compositor animations are
+     still measurable on low-end devices, and the OS motion preference should
+     win even for a gentle fade. */
+  @media (prefers-reduced-motion: no-preference) {
+    .wind-arrow-shape {
+      animation: windArrowPulse 2.6s ease-in-out infinite;
+    }
   }
 
   @keyframes windArrowPulse {

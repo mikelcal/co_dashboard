@@ -69,6 +69,7 @@ STATES_SET = set(STATES)
 CORRELATION_DATA = data_prep.calculate_correlation(full_df, ['region']).to_dict(orient='records')
 STATE_AVERAGES = data_prep.get_state_averages_with_trend(full_df)
 SEASONAL_AVERAGES = _build_seasonal_averages()
+MONTHLY_CLIMATOLOGY = data_prep.get_monthly_climatology(full_df)
 US_COMBO_DATA = _build_us_combo()
 TREEMAP_NODES = _build_treemap_nodes(full_df)
 ANIMATED_WIND_ROSE = {
@@ -135,6 +136,10 @@ def state_averages():
 @app.route("/seasonal_averages")
 def seasonal_averages():
     return jsonify(SEASONAL_AVERAGES)
+
+@app.route("/monthly_climatology")
+def monthly_climatology():
+    return jsonify(MONTHLY_CLIMATOLOGY)
 
 # ---------- CHART LOGIC ----------
 @app.route("/us_combo_data")

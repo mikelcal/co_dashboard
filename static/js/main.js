@@ -35,6 +35,7 @@ const loaders = {
   treemap: "treemapLoader",
   bar: "groupedBarLoader",
   scatter: "scatterLoader",
+  heatmap: "heatmapLoader",
 };
 // colors for treemap regions
 const regionColors = {
@@ -667,6 +668,28 @@ document.addEventListener("DOMContentLoaded", () => {
     .finally(() => {
       hideLoader(loaders.bar);
       hideLoader(loaders.scatter);
+    });
+
+  // State × year heatmap — reuses the precomputed animated-map payload
+  showLoader(loaders.heatmap);
+  fetch("/choropleth_data/animated")
+    .then((res) => res.json())
+    .then((data) => {
+      drawCoHeatmap({ data, containerId: "coHeatmap" });
+    })
+    .catch((error) => {
+      console.error("Error loading CO heatmap data:", error);
+    })
+    .finally(() => hideLoader(loaders.heatmap));
+
+  // Radial monthly climatology (CO + wind annual cycles)
+  fetch("/monthly_climatology")
+    .then((res) => res.json())
+    .then((data) => {
+      drawSeasonalClimatology({ data, containerId: "seasonalClimatology" });
+    })
+    .catch((error) => {
+      console.error("Error loading monthly climatology:", error);
     });
 
   fetch("/state_comparison", {
@@ -1905,6 +1928,406 @@ function drawWindCoScatter({
         .style("left", event.pageX + 20 + "px");
     })
     .on("mouseout", () => tooltip.style("visibility", "hidden"));
+}
+
+// === State × Year CO heatmap ===
+// Consumes the same /choropleth_data/animated payload as the animated map:
+// { CA: { state_code, state, state_fips, year: { "2014": 0.26, ... } }, ... }
+function drawCoHeatmap({
+  data,
+  containerId,
+  width = CHART_WIDTH,
+  height = 900,
+}) {
+  const svg = d3.select(`#${containerId}`);
+  svg.selectAll("*").remove();
+  svg
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  const entries = Object.values(data);
+  const yearKeys = Array.from(
+    new Set(entries.flatMap((s) => Object.keys(s.year || {})))
+  ).sort();
+
+  // One row per state: yearly values, decade mean (for ordering) and
+  // first→last percent change (for the Δ column)
+  const rows = entries
+    .map((s) => {
+      const values = yearKeys.map((y) => ({
+        year: y,
+        value: s.year?.[y] ?? null,
+      }));
+      const present = values.filter((v) => v.value != null);
+      const first = present[0];
+      const last = present[present.length - 1];
+      return {
+        code: s.state_code,
+        name: s.state,
+        values,
+        mean: d3.mean(present, (v) => v.value),
+        pctChange:
+          present.length >= 2 && first.value > 0
+            ? ((last.value - first.value) / first.value) * 100
+            : null,
+        changeSpan: present.length >= 2 ? `${first.year}→${last.year}` : null,
+      };
+    })
+    .sort((a, b) => d3.descending(a.mean, b.mean));
+
+  const margin = { top: 110, right: 95, bottom: 20, left: 55 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  const x = d3
+    .scaleBand()
+    .domain(yearKeys)
+    .range([0, chartWidth])
+    .paddingInner(0.06);
+  const y = d3
+    .scaleBand()
+    .domain(rows.map((r) => r.code))
+    .range([0, chartHeight])
+    .paddingInner(0.18);
+
+  // Same quantized red ramp as the animated map, so the two views read together
+  const allValues = rows.flatMap((r) =>
+    r.values.filter((v) => v.value != null).map((v) => v.value)
+  );
+  const color = d3
+    .scaleQuantize()
+    .domain(d3.extent(allValues))
+    .range(d3.schemeReds[9]);
+
+  // Title + subtitle
+  svg
+    .append("text")
+    .attr("x", width / 2)
+    .attr("y", 30)
+    .attr("text-anchor", "middle")
+    .style("font-size", "18px")
+    .style("font-weight", "bold")
+    .style("font-family", "sans-serif")
+    .text("A Decade of CO, State by State (2014–2024)");
+  svg
+    .append("text")
+    .attr("x", width / 2)
+    .attr("y", 52)
+    .attr("text-anchor", "middle")
+    .style("font-size", "13px")
+    .style("font-family", "sans-serif")
+    .attr("fill", "#666")
+    .text(
+      "States ordered by decade average · color scale shared with the map above"
+    );
+
+  // Compact quantize legend (min → max swatches)
+  const legendG = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left}, 68)`);
+  const swatchW = 22;
+  color.range().forEach((c, i) => {
+    legendG
+      .append("rect")
+      .attr("x", i * swatchW)
+      .attr("width", swatchW)
+      .attr("height", 10)
+      .attr("fill", c);
+  });
+  const [dMin, dMax] = color.domain();
+  legendG
+    .append("text")
+    .attr("x", -6)
+    .attr("y", 9)
+    .attr("text-anchor", "end")
+    .style("font-size", "11px")
+    .style("font-family", "sans-serif")
+    .text(`${dMin.toFixed(2)} PPM`);
+  legendG
+    .append("text")
+    .attr("x", color.range().length * swatchW + 6)
+    .attr("y", 9)
+    .style("font-size", "11px")
+    .style("font-family", "sans-serif")
+    .text(`${dMax.toFixed(2)} PPM`);
+
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Year labels across the top
+  g.selectAll("text.hm-year")
+    .data(yearKeys)
+    .enter()
+    .append("text")
+    .attr("class", "hm-year")
+    .attr("x", (d) => x(d) + x.bandwidth() / 2)
+    .attr("y", -8)
+    .attr("text-anchor", "middle")
+    .style("font-size", "12px")
+    .style("font-weight", "bold")
+    .style("font-family", "sans-serif")
+    .text((d) => d);
+
+  // Δ column header
+  g.append("text")
+    .attr("x", chartWidth + 12)
+    .attr("y", -8)
+    .style("font-size", "12px")
+    .style("font-weight", "bold")
+    .style("font-family", "sans-serif")
+    .text("Δ %");
+
+  const tooltip = d3.select("#tooltip");
+
+  const rowG = g
+    .selectAll("g.hm-row")
+    .data(rows)
+    .enter()
+    .append("g")
+    .attr("class", "hm-row")
+    .attr("transform", (d) => `translate(0,${y(d.code)})`);
+
+  // State code labels
+  rowG
+    .append("text")
+    .attr("x", -8)
+    .attr("y", y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .attr("text-anchor", "end")
+    .style("font-size", "10px")
+    .style("font-family", "sans-serif")
+    .text((d) => d.code);
+
+  // Cells
+  rowG
+    .selectAll("rect.hm-cell")
+    .data((d) => d.values.map((v) => ({ ...v, row: d })))
+    .enter()
+    .append("rect")
+    .attr("class", "hm-cell")
+    .attr("x", (d) => x(d.year))
+    .attr("width", x.bandwidth())
+    .attr("height", y.bandwidth())
+    .attr("rx", 1.5)
+    .attr("fill", (d) => (d.value != null ? color(d.value) : "#e0e0e0"))
+    .on("mouseover", function (event, d) {
+      d3.select(this).attr("stroke", "#333").attr("stroke-width", 1.5);
+      tooltip.style("visibility", "visible").html(`
+            <strong>${d.row.name} — ${d.year}</strong><br>
+            ${
+              d.value != null
+                ? `CO: ${d.value.toFixed(3)} PPM`
+                : "No measurements"
+            }
+          `);
+    })
+    .on("mousemove", (event) => {
+      tooltip
+        .style("top", event.pageY - 50 + "px")
+        .style("left", event.pageX + 20 + "px");
+    })
+    .on("mouseout", function () {
+      d3.select(this).attr("stroke", null);
+      tooltip.style("visibility", "hidden");
+    });
+
+  // Δ column: percent change from first to last measured year
+  rowG
+    .append("text")
+    .attr("x", chartWidth + 12)
+    .attr("y", y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .style("font-size", "10px")
+    .style("font-family", "sans-serif")
+    .attr("fill", (d) =>
+      d.pctChange == null ? "#999" : d.pctChange <= 0 ? "#1a7f37" : "#b02a37"
+    )
+    .text((d) =>
+      d.pctChange == null
+        ? "–"
+        : `${d.pctChange > 0 ? "+" : ""}${d.pctChange.toFixed(0)}%`
+    )
+    .on("mouseover", (event, d) => {
+      if (d.changeSpan == null) return;
+      tooltip.style("visibility", "visible").html(`
+            <strong>${d.name}</strong><br>
+            Change ${d.changeSpan}: ${d.pctChange > 0 ? "+" : ""}${d.pctChange.toFixed(1)}%
+          `);
+    })
+    .on("mousemove", (event) => {
+      tooltip
+        .style("top", event.pageY - 50 + "px")
+        .style("left", event.pageX + 20 + "px");
+    })
+    .on("mouseout", () => tooltip.style("visibility", "hidden"));
+}
+
+// === Radial monthly climatology (CO + wind annual cycles) ===
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const MONTH_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function drawSeasonalClimatology({
+  data,
+  containerId,
+  width = CHART_WIDTH,
+  height = 560,
+}) {
+  const svg = d3.select(`#${containerId}`);
+  svg.selectAll("*").remove();
+  svg
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  svg
+    .append("text")
+    .attr("x", width / 2)
+    .attr("y", 30)
+    .attr("text-anchor", "middle")
+    .style("font-size", "18px")
+    .style("font-weight", "bold")
+    .style("font-family", "sans-serif")
+    .text("The Annual Cycle: Monthly Averages Across 2014–2024");
+
+  const panels = [
+    {
+      key: "avg_co",
+      label: "CO Concentration (PPM)",
+      stroke: "darkred",
+      fill: "lightcoral",
+      cx: width * 0.27,
+      format: (v) => `${v.toFixed(3)} PPM`,
+    },
+    {
+      key: "avg_wind",
+      label: "Wind Speed (mph)",
+      stroke: "darkblue",
+      fill: "steelblue",
+      cx: width * 0.73,
+      format: (v) => `${v.toFixed(1)} mph`,
+    },
+  ];
+
+  const cy = height / 2 + 38;
+  const radius = Math.min(width * 0.19, height / 2 - 90);
+  // Jan at 12 o'clock, months clockwise (d3 radial convention)
+  const angle = (month) => ((month - 1) / 12) * 2 * Math.PI;
+  const tooltip = d3.select("#tooltip");
+
+  panels.forEach((panel) => {
+    const g = svg
+      .append("g")
+      .attr("transform", `translate(${panel.cx},${cy})`);
+
+    const r = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d[panel.key]) * 1.12])
+      .range([0, radius]);
+
+    // Circular gridlines + tick values up the 12-o'clock spoke
+    const ticks = r.ticks(4).filter((t) => t > 0);
+    g.selectAll("circle.grid")
+      .data(ticks)
+      .enter()
+      .append("circle")
+      .attr("class", "grid")
+      .attr("r", (t) => r(t))
+      .attr("fill", "none")
+      .attr("stroke", "#ddd");
+    g.selectAll("text.grid-tick")
+      .data(ticks)
+      .enter()
+      .append("text")
+      .attr("class", "grid-tick")
+      .attr("x", 5)
+      .attr("y", (t) => -r(t) - 3)
+      .style("font-size", "10px")
+      .style("font-family", "sans-serif")
+      .attr("fill", "#888")
+      .text((t) => t);
+
+    // Month spokes + labels
+    data.forEach((d) => {
+      const a = angle(d.month);
+      const sx = Math.sin(a);
+      const syNeg = -Math.cos(a);
+      g.append("line")
+        .attr("x2", radius * sx)
+        .attr("y2", radius * syNeg)
+        .attr("stroke", "#eee");
+      g.append("text")
+        .attr("x", (radius + 18) * sx)
+        .attr("y", (radius + 18) * syNeg)
+        .attr("text-anchor", "middle")
+        .attr("dy", "0.35em")
+        .style("font-size", "12px")
+        .style("font-family", "sans-serif")
+        .text(MONTH_ABBR[d.month - 1]);
+    });
+
+    // Closed radial outline (straight segments — no curve overshoot)
+    const line = d3
+      .lineRadial()
+      .angle((d) => angle(d.month))
+      .radius((d) => r(d[panel.key]))
+      .curve(d3.curveLinearClosed);
+    g.append("path")
+      .datum(data)
+      .attr("d", line)
+      .attr("fill", panel.fill)
+      .attr("fill-opacity", 0.35)
+      .attr("stroke", panel.stroke)
+      .attr("stroke-width", 2);
+
+    // Data points with tooltips
+    g.selectAll("circle.clim-point")
+      .data(data)
+      .enter()
+      .append("circle")
+      .attr("class", "clim-point")
+      .attr("cx", (d) => r(d[panel.key]) * Math.sin(angle(d.month)))
+      .attr("cy", (d) => -r(d[panel.key]) * Math.cos(angle(d.month)))
+      .attr("r", 4)
+      .attr("fill", panel.stroke)
+      .on("mouseover", (event, d) => {
+        tooltip.style("visibility", "visible").html(`
+              <strong>${MONTH_FULL[d.month - 1]}</strong><br>
+              ${panel.label.split(" (")[0]}: ${panel.format(d[panel.key])}
+            `);
+      })
+      .on("mousemove", (event) => {
+        tooltip
+          .style("top", event.pageY - 50 + "px")
+          .style("left", event.pageX + 20 + "px");
+      })
+      .on("mouseout", () => tooltip.style("visibility", "hidden"));
+
+    // Panel title + computed peak month (kept honest — derived from data)
+    const peak = data.reduce((a, b) =>
+      b[panel.key] > a[panel.key] ? b : a
+    );
+    g.append("text")
+      .attr("y", -radius - 44)
+      .attr("text-anchor", "middle")
+      .style("font-size", "14px")
+      .style("font-weight", "bold")
+      .style("font-family", "sans-serif")
+      .attr("fill", panel.stroke)
+      .text(panel.label);
+    g.append("text")
+      .attr("y", radius + 44)
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .style("font-family", "sans-serif")
+      .attr("fill", "#666")
+      .text(`Peak: ${MONTH_FULL[peak.month - 1]} (${panel.format(peak[panel.key])})`);
+  });
 }
 
 function drawGroupedBarChart({

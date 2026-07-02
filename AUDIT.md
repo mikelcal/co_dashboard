@@ -182,14 +182,19 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 - [x] **Custom wavy-arrow glyph** (`arrow_wavy.svg`) — one `<path>` oriented/sized via `scale(s,-s) translate(-5,0)` (flips it to point up = north at rotation 0); `vector-effect:non-scaling-stroke` keeps the casing a constant width at any scale; size tuned (length scale 8–48 → **7–40 px**).
 - [x] **Subtle "shimmer" pulse** — CSS opacity animation `windArrowPulse` (0.65↔1.0, 2.6 s), staggered per arrow via `animation-delay`. GPU-composited, no JS timers. **Runs unconditionally** (gentle opacity fade, not large motion); the arrows' rotation/length transitions still respect `prefers-reduced-motion`. *(Note: if we later want to re-gate this behind reduced-motion, it's a one-line change — see `.wind-arrow-shape` in `main.css`.)*
 
+**P3c — new visualizations + decision closeouts** *(2026-07-01)*
+
+- [x] **Re-gate decision:** shimmer now respects `prefers-reduced-motion` (wrapped `.wind-arrow-shape` animation in a `no-preference` media query, `main.css`). Rationale: 50 infinite compositor animations are measurable on low-end devices, and honoring the OS motion preference is the WCAG-aligned default; everyone else keeps the shimmer. Verified via CSSOM: rule lives under `(prefers-reduced-motion: no-preference)`.
+- [x] **Glyph mapping decision:** keep *length* encoding for wind speed — length + rotation is the standard, honest wind-vector encoding; uniform glyphs would discard data. Closed.
+- [x] **NEW VIZ** State × Year CO heatmap (`drawCoHeatmap`, `#coHeatmap` card after the map section) — 50 states × 11 years from the existing `/choropleth_data/animated` payload (no backend change), rows ordered by decade mean, same `schemeReds[9]` quantize ramp as the map, in-SVG legend, per-cell tooltips, and a first→last-year Δ% column (green = improved). Verified live: 550 cells, Δ column populated, zero console errors.
+- [x] **NEW VIZ** Radial monthly climatology (`drawSeasonalClimatology`, `#seasonalClimatology` card at the end of the seasonality section) — twin 12-month radial profiles for CO and wind (separate radial scales, zero-based, `curveLinearClosed` — no overshoot), month spokes/labels, gridline ticks, point tooltips, and data-derived peak captions. New precomputed backend payload: `get_monthly_climatology()` in `data_prep.py` + `/monthly_climatology` route. Verified live: CO peak = December (0.303 PPM), wind peak = April (8.7 mph) — the out-of-phase story the section's prose already tells.
+
 **P3 — still pending for next session**
 
-- [ ] **Re-gate decision (quick):** confirm whether the shimmer should stay unconditional or respect `prefers-reduced-motion` (left unconditional per user request 2026-06-12).
-- [ ] **Optional:** swap the wind-speed→glyph mapping from *length* to *uniform size* if a fixed-glyph look is preferred (raised when the wavy glyph went in).
-- [ ] **Deferred (own session):** Split the 3,144-line `main.js` into per-chart ES modules.
 - [ ] **Accessibility pass (finish):** chart `<title>`/`aria` descriptions, non-color encodings, keyboard/touch tooltip access. *(Sliders + play/pause buttons already done.)*
 - [ ] **Mobile audit (finish):** fixed-width cards and `margin-top:` style offsets (the `background-attachment:fixed` jank is already fixed).
-- [ ] **Viz-switcher toggle** — explicitly deferred at the 2026-06-12 decision gate; revisit if the dashboard grows more visualizations.
+- [ ] **Deprioritized (2026-07-01, per Mikel):** splitting `main.js` into ES modules — showcase project, not a long-term maintained interface; only revisit if it blocks other work.
+- [ ] **Viz-switcher toggle** — still deferred; revisit now that the dashboard has two more visualizations (heatmap + radial climatology).
 
 ---
 
