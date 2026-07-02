@@ -182,7 +182,7 @@ These matter most for the "exemplary D3/data-science portfolio" goal:
 - [x] **Custom wavy-arrow glyph** (`arrow_wavy.svg`) — one `<path>` oriented/sized via `scale(s,-s) translate(-5,0)` (flips it to point up = north at rotation 0); `vector-effect:non-scaling-stroke` keeps the casing a constant width at any scale; size tuned (length scale 8–48 → **7–40 px**).
 - [x] **Subtle "shimmer" pulse** — CSS opacity animation `windArrowPulse` (0.65↔1.0, 2.6 s), staggered per arrow via `animation-delay`. GPU-composited, no JS timers. **Runs unconditionally** (gentle opacity fade, not large motion); the arrows' rotation/length transitions still respect `prefers-reduced-motion`. *(Note: if we later want to re-gate this behind reduced-motion, it's a one-line change — see `.wind-arrow-shape` in `main.css`.)*
 
-**P3c — new visualizations + decision closeouts** *(2026-07-01)*
+**P3c — new visualizations + decision closeouts** *(2026-07-01; deployed to prod — co-dashboard.mikelcal.co — same day at commit `6601925`, verified healthy: healthz 200, new endpoint live, 1 master + 2 workers, swap steady)*
 
 - [x] **Re-gate decision:** shimmer now respects `prefers-reduced-motion` (wrapped `.wind-arrow-shape` animation in a `no-preference` media query, `main.css`). Rationale: 50 infinite compositor animations are measurable on low-end devices, and honoring the OS motion preference is the WCAG-aligned default; everyone else keeps the shimmer. Verified via CSSOM: rule lives under `(prefers-reduced-motion: no-preference)`.
 - [x] **Glyph mapping decision:** keep *length* encoding for wind speed — length + rotation is the standard, honest wind-vector encoding; uniform glyphs would discard data. Closed.
