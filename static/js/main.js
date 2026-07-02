@@ -1972,8 +1972,34 @@ function drawCoHeatmap({
             : null,
         changeSpan: present.length >= 2 ? `${first.year}→${last.year}` : null,
       };
-    })
-    .sort((a, b) => d3.descending(a.mean, b.mean));
+    });
+
+  // Row orderings selectable via the #heatmapSort dropdown; states with no
+  // computable Δ (fewer than 2 measured years) always sink to the bottom
+  const SORT_MODES = {
+    "avg-desc": {
+      cmp: (a, b) => d3.descending(a.mean, b.mean),
+      caption: "ordered by decade average (high → low)",
+    },
+    "avg-asc": {
+      cmp: (a, b) => d3.ascending(a.mean, b.mean),
+      caption: "ordered by decade average (low → high)",
+    },
+    alpha: {
+      cmp: (a, b) => d3.ascending(a.code, b.code),
+      caption: "ordered by state code (A–Z)",
+    },
+    "delta-asc": {
+      cmp: (a, b) =>
+        d3.ascending(a.pctChange ?? Infinity, b.pctChange ?? Infinity),
+      caption: "ordered by 2014→2024 change (most improved first)",
+    },
+    "delta-desc": {
+      cmp: (a, b) =>
+        d3.descending(a.pctChange ?? -Infinity, b.pctChange ?? -Infinity),
+      caption: "ordered by 2014→2024 change (most worsened first)",
+    },
+  };
 
   const margin = { top: 110, right: 95, bottom: 20, left: 55 };
   const chartWidth = width - margin.left - margin.right;
@@ -2009,17 +2035,14 @@ function drawCoHeatmap({
     .style("font-weight", "bold")
     .style("font-family", "sans-serif")
     .text("A Decade of CO, State by State (2014–2024)");
-  svg
+  const subtitle = svg
     .append("text")
     .attr("x", width / 2)
     .attr("y", 52)
     .attr("text-anchor", "middle")
     .style("font-size", "13px")
     .style("font-family", "sans-serif")
-    .attr("fill", "#666")
-    .text(
-      "States ordered by decade average · color scale shared with the map above"
-    );
+    .attr("fill", "#666"); // text set by applySort()
 
   // Compact quantize legend (min → max swatches)
   const legendG = svg
@@ -2161,6 +2184,25 @@ function drawCoHeatmap({
         .style("left", event.pageX + 20 + "px");
     })
     .on("mouseout", () => tooltip.style("visibility", "hidden"));
+
+  // Reorder rows (animated unless reduced motion) and keep the subtitle honest
+  function applySort(mode, animate = true) {
+    const { cmp, caption } = SORT_MODES[mode] || SORT_MODES["avg-desc"];
+    y.domain([...rows].sort(cmp).map((r) => r.code));
+    const target =
+      animate && !prefersReducedMotion
+        ? rowG.transition().duration(750)
+        : rowG;
+    target.attr("transform", (d) => `translate(0,${y(d.code)})`);
+    subtitle.text(`States ${caption} · color scale shared with the map above`);
+  }
+
+  const sortSelect = d3.select("#heatmapSort");
+  sortSelect.on("change", (event) => applySort(event.target.value));
+  applySort(
+    sortSelect.empty() ? "avg-desc" : sortSelect.property("value"),
+    false
+  );
 }
 
 // === Radial monthly climatology (CO + wind annual cycles) ===
